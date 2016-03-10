@@ -103,13 +103,12 @@ func (myBroker *myServiceBroker) Services() []brokerapi.Service {
 					}
 					//装配plan需要返回的值，按照有多少个plan往里面装
 					myPlans = append(myPlans, myPlan)
-					//重置套餐变量
-					myPlan = brokerapi.ServicePlan{}
 
 				}
 				//将装配好的Plan对象赋值给Service
 				myService.Plans = myPlans
 				//清空myPlans
+				myPlans = []brokerapi.ServicePlan{}
 
 			}
 		}
