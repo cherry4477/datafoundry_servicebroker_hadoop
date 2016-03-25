@@ -2,7 +2,6 @@ package handler
 
 import (
 	"database/sql"
-	"fmt"
 	_ "github.com/lib/pq"
 	"github.com/pivotal-cf/brokerapi"
 	"strings"
@@ -34,13 +33,11 @@ func (handler *Postgresql_sharedHandler) DoProvision(instanceID string, details 
 	dbname := "d" + getguid()
 	newusername := "u" + getguid()
 	newpassword := "p" + getguid()
-	fmt.Println("CREATE USER " + newusername + " WITH PASSWORD '" + newpassword + "'")
 	_, err = db.Query("CREATE USER " + newusername + " WITH PASSWORD '" + newpassword + "'")
 
 	if err != nil {
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
-	fmt.Println("CREATE DATABASE " + dbname + " WITH OWNER =" + newusername + " ENCODING = 'UTF8'")
 	_, err = db.Query("CREATE DATABASE " + dbname + " WITH OWNER =" + newusername + " ENCODING = 'UTF8'")
 
 	if err != nil {

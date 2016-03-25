@@ -81,14 +81,16 @@ func (handler *Mongodb_aws_shareandcommonHandler) DoLastOperation(myServiceInfo 
 
 func (handler *Mongodb_aws_shareandcommonHandler) DoDeprovision(myServiceInfo *ServiceInfo, asyncAllowed bool) (brokerapi.IsAsync, error) {
 	//初始化mongodb的链接串
-	session, err := mgo.Dial(myServiceInfo.Url) //连接数据库
+	//session, err := mgo.Dial(myServiceInfo.Url) //连接数据库，用当初创建时候的URL
+	session, err := mgo.Dial(mongoUrl) //连接数据库，用现在的URL
 	if err != nil {
 		return brokerapi.IsAsync(false), err
 	}
 	defer session.Close()
 	session.SetMode(mgo.Monotonic, true)
 	mongodb := session.DB("admin") //数据库名称
-	err = mongodb.Login(myServiceInfo.Admin_user, myServiceInfo.Admin_password)
+	//err = mongodb.Login(myServiceInfo.Admin_user, myServiceInfo.Admin_password) //用当初创建的用户名和密码
+	err = mongodb.Login(mongoAdminUser, mongoAdminPassword) //用现在环境变量里面的用户名和密码
 	if err != nil {
 		return brokerapi.IsAsync(false), err
 	}
@@ -108,7 +110,8 @@ func (handler *Mongodb_aws_shareandcommonHandler) DoDeprovision(myServiceInfo *S
 
 func (handler *Mongodb_aws_shareandcommonHandler) DoBind(myServiceInfo *ServiceInfo, bindingID string, details brokerapi.BindDetails) (brokerapi.Binding, Credentials, error) {
 	//初始化mongodb的两个变量
-	mongodburl := myServiceInfo.Url
+	//mongodburl := myServiceInfo.Url
+	mongodburl := mongoUrl
 	//share 模式只能是该数据库
 	mongodbname := myServiceInfo.Database
 	//share 模式，只是这个数据库的读写
@@ -122,7 +125,8 @@ func (handler *Mongodb_aws_shareandcommonHandler) DoBind(myServiceInfo *ServiceI
 	defer session.Close()
 	session.SetMode(mgo.Monotonic, true)
 	mongodb := session.DB("admin") //数据库名称
-	err = mongodb.Login(myServiceInfo.Admin_user, myServiceInfo.Admin_password)
+	//err = mongodb.Login(myServiceInfo.Admin_user, myServiceInfo.Admin_password) //用当初创建的用户名和密码
+	err = mongodb.Login(mongoAdminUser, mongoAdminPassword) //用现在环境变量里面的用户名和密码
 	if err != nil {
 		return brokerapi.Binding{}, Credentials{}, err
 	}
@@ -173,7 +177,8 @@ func (handler *Mongodb_aws_shareandcommonHandler) DoBind(myServiceInfo *ServiceI
 
 func (handler *Mongodb_aws_shareandcommonHandler) DoUnbind(myServiceInfo *ServiceInfo, mycredentials *Credentials) error {
 	//初始化mongodb的两个变量
-	mongodburl := myServiceInfo.Url
+	//mongodburl := myServiceInfo.Url
+	mongodburl := mongoUrl
 	mongodbname := myServiceInfo.Database
 	//初始化mongodb的链接串
 	session, err := mgo.Dial(mongodburl) //连接数据库
@@ -183,7 +188,8 @@ func (handler *Mongodb_aws_shareandcommonHandler) DoUnbind(myServiceInfo *Servic
 	defer session.Close()
 	session.SetMode(mgo.Monotonic, true)
 	mongodb := session.DB("admin") //数据库名称
-	err = mongodb.Login(myServiceInfo.Admin_user, myServiceInfo.Admin_password)
+	//err = mongodb.Login(myServiceInfo.Admin_user, myServiceInfo.Admin_password) //用当初创建的用户名和密码
+	err = mongodb.Login(mongoAdminUser, mongoAdminPassword) //用现在环境变量里面的用户名和密码
 	if err != nil {
 		return err
 	}

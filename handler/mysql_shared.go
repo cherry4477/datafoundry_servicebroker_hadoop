@@ -75,8 +75,8 @@ func (handler *Mysql_sharedHandler) DoLastOperation(myServiceInfo *ServiceInfo) 
 func (handler *Mysql_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asyncAllowed bool) (brokerapi.IsAsync, error) {
 
 	//初始化mysql的链接串
-	db, err := sql.Open("mysql", myServiceInfo.Admin_user+":"+myServiceInfo.Admin_password+"@tcp("+myServiceInfo.Url+")/")
-
+	//db, err := sql.Open("mysql", myServiceInfo.Admin_user+":"+myServiceInfo.Admin_password+"@tcp("+myServiceInfo.Url+")/")
+	db, err := sql.Open("mysql", "root:"+mysqlAdminPassword+"@tcp("+mysqlUrl+")/")
 	if err != nil {
 		return brokerapi.IsAsync(false), err
 	}
@@ -110,8 +110,8 @@ func (handler *Mysql_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, as
 
 func (handler *Mysql_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID string, details brokerapi.BindDetails) (brokerapi.Binding, Credentials, error) {
 	//初始化mysql的链接串
-	db, err := sql.Open("mysql", myServiceInfo.Admin_user+":"+myServiceInfo.Admin_password+"@tcp("+myServiceInfo.Url+")/")
-
+	//db, err := sql.Open("mysql", myServiceInfo.Admin_user+":"+myServiceInfo.Admin_password+"@tcp("+myServiceInfo.Url+")/")
+	db, err := sql.Open("mysql", "root:"+mysqlAdminPassword+"@tcp("+mysqlUrl+")/")
 	if err != nil {
 		return brokerapi.Binding{}, Credentials{}, err
 	}
@@ -150,8 +150,8 @@ func (handler *Mysql_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID
 
 func (handler *Mysql_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycredentials *Credentials) error {
 	//初始化mysql的链接串
-	db, err := sql.Open("mysql", myServiceInfo.Admin_user+":"+myServiceInfo.Admin_password+"@tcp("+myServiceInfo.Url+")/")
-
+	//db, err := sql.Open("mysql", myServiceInfo.Admin_user+":"+myServiceInfo.Admin_password+"@tcp("+myServiceInfo.Url+")/")
+	db, err := sql.Open("mysql", "root:"+mysqlAdminPassword+"@tcp("+mysqlUrl+")/")
 	if err != nil {
 		return err
 	}
