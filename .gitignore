@@ -2,7 +2,7 @@
 *.o
 *.a
 *.so
-mongodb_aws
+mongodb
 # Folders
 _obj
 _test
