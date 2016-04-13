@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	handler "github.com/asiainfoLDP/datafoundry_servicebroker_go/handler"
+	handler "github.com/asiainfoLDP/datafoundry_servicebroker_hadoop/handler"
 	"github.com/coreos/etcd/client"
 	"github.com/pivotal-cf/brokerapi"
 	"github.com/pivotal-golang/lager"
@@ -561,7 +561,7 @@ func getenv(env string) string {
 	env_value := os.Getenv(env)
 	if env_value == "" {
 		fmt.Println("FATAL: NEED ENV", env)
-		fmt.Println("Exit...........")
+		fmt.Println("#Exit...........")
 		os.Exit(2)
 	}
 	fmt.Println("ENV:", env, env_value)
@@ -571,7 +571,7 @@ func getenv(env string) string {
 //定义日志和etcd的全局变量，以及其他变量
 var logger lager.Logger
 var etcdapi client.KeysAPI
-var servcieBrokerName string = "mongodb_aws"
+var servcieBrokerName string = "hdfs"
 var etcdEndPoint, etcdUser, etcdPassword string
 var serviceBrokerPort string
 var mongoUrl string
@@ -579,6 +579,7 @@ var mongoAdminUser string
 var mongoAdminPassword string
 
 func main() {
+	fmt.Println("main....")
 	//初始化参数，参数应该从环境变量中获取
 	var username, password string
 	//todo参数应该改为从环境变量中获取
@@ -604,6 +605,7 @@ func main() {
 	c, err := client.New(cfg)
 	if err != nil {
 		logger.Error("Can not init ectd client", err)
+		fmt.Println("------------------------>")
 	}
 	etcdapi = client.NewKeysAPI(c)
 

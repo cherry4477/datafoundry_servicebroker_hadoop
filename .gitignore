@@ -8,6 +8,8 @@ _obj
 _test
 /tool/*
 _tool
+.idea/
+
 # Architecture specific extensions/prefixes
 *.[568vq]
 [568vq].out
@@ -23,3 +25,5 @@ _testmain.go
 *.exe
 *.test
 *.prof
+datafoundry_servicebroker_hadoop
+
