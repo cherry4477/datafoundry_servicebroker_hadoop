@@ -8,6 +8,8 @@ import (
 	"os"
 	"fmt"
 	"time"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -42,6 +44,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	if err != nil {
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
+	fmt.Println("create directory done......")
 
 	newusername := "xm"+getRandom()
 	//newpassword := getRandom()
@@ -61,6 +64,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	if err != nil {
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
+	fmt.Println("add account done......")
 
 	info := newHdfsPolicyInfo(policyRepoType, policyRepoName, policyName, "/servicebroker/"+dname)
 
@@ -70,8 +74,9 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	ranger.AddPermToPermission(&perm,  "read", "write", "execute")
 	ranger.AddPermissionToPolicy(&info, perm)
 
+	var policyId int
 	for i := 0; i < 10; i++ {
-		_, err = ranger.CreatePolicy(rangerEndpoint, rangerUser, rangerPassword, info)
+		policyId, err = ranger.CreatePolicy(rangerEndpoint, rangerUser, rangerPassword, info)
 		if err != nil {
 			time.Sleep(time.Second * 2)
 			continue
@@ -84,25 +89,16 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
-	//info := newHdfsPolicyInfo(policyRepoType, policyRepoName, policyName, "/servicebroker/"+dname)
-	//
-	//perm := ranger.InitPermission()
-	//ranger.AddUserToPermission(&perm, newusername)
-	//ranger.AddGroupToPermission(&perm, "broker")
-	//ranger.AddPermToPermission(&perm,  "read", "write", "execute")
-	//ranger.AddPermissionToPolicy(&info, perm)
+	fmt.Println("create policy done......")
 
-	//_, err = ranger.CreatePolicy(rangerEndpoint, rangerUser, rangerPassword, info)
-	//if err != nil {
-	//	return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
-	//}
+	policyIdStr := strconv.Itoa(policyId)
 
 	DashboardURL := "http://"
 
 	myServiceInfo := ServiceInfo{
 		Url:            hdfsUrl,
 		Admin_user:     "ocdp",
-		Admin_password: "",
+		Admin_password: policyIdStr,  //把创建好的policy的id通过这个参数传递
 		Database:       dname,
 		User:           newusername,
 		Password:       "",
@@ -114,7 +110,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 }
 
 func (handler *Hdfs_sharedHandler) DoLastOperation(myServiceInfo *ServiceInfo) (brokerapi.LastOperation, error) {
-
+	fmt.Println("DoLastOperation......")
 	return brokerapi.LastOperation{
 		State:       brokerapi.Succeeded,
 		Description: "It's a sync method!",
@@ -122,34 +118,103 @@ func (handler *Hdfs_sharedHandler) DoLastOperation(myServiceInfo *ServiceInfo) (
 }
 
 func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asyncAllowed bool) (brokerapi.IsAsync, error) {
-	config := hdfs.NewConfiguration()
-	config.Addr = hdfsUrl
-	config.User = hdfsUser
-	config.MaxIdleConnsPerHost = 64
+	fmt.Println("DoDeprovision......")
 
+	config := newHdfsConfig()
 	fs, err := hdfs.NewFileSystem(*config)
 	if err != nil {
 		return brokerapi.IsAsync(false), err
 	}
 
-	path := hdfs.Path{}
-	path.Name = myServiceInfo.Database
-
-	_, err = fs.Delete(path, true)
+	_, err = deleteDirectory(fs, myServiceInfo.Database, true)
 	if err != nil {
 		return brokerapi.IsAsync(false), err
 	}
+	fmt.Println("delete directory done......")
+
+	policyId, err := strconv.Atoi(myServiceInfo.Admin_password)
+	if err != nil {
+		return brokerapi.IsAsync(false), err
+	}
+
+	_, err = ranger.DeletePolicy(rangerEndpoint, rangerUser, rangerPassword, policyId)
+	if err != nil {
+		return brokerapi.IsAsync(false), err
+	}
+	fmt.Println("delete policy done......")
+
+	ldap, err := openldap.Initialize(ldapUrl)
+	if err != nil {
+		return brokerapi.IsAsync(false), err
+	}
+
+	err = ldap.Bind(ldapUser, ldapPassword)
+	if err != nil {
+		return brokerapi.IsAsync(false), err
+	}
+
+	err = deleteAccount(ldap, myServiceInfo.User)
+	if err != nil {
+		return brokerapi.IsAsync(false), err
+	}
+	fmt.Println("delete account done......")
 
 	return brokerapi.IsAsync(false), nil
 }
 
 func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID string, details brokerapi.BindDetails) (brokerapi.Binding, Credentials, error) {
+	fmt.Println("DoBind......")
+	ldap, err := openldap.Initialize(ldapUrl)
+	if err != nil {
+		return brokerapi.Binding{}, Credentials{}, err
+	}
+
+	err = ldap.Bind(ldapUser, ldapPassword)
+	if err != nil {
+		return brokerapi.Binding{}, Credentials{}, err
+	}
+	newAccount := "xm"+getRandom()
+	err = addAccount(ldap, newAccount, "broker")
+	if err != nil {
+		return brokerapi.Binding{}, Credentials{}, err
+	}
+	fmt.Println("add account done......")
+
+	policyName := getRandom()
+
+	info := newHdfsPolicyInfo(policyRepoType, policyRepoName, policyName, "/servicebroker/"+myServiceInfo.Database)
+
+	perm := ranger.InitPermission()
+	ranger.AddUserToPermission(&perm, newAccount)
+	ranger.AddGroupToPermission(&perm, "broker")
+	ranger.AddPermToPermission(&perm,  "read", "write", "execute")
+	ranger.AddPermissionToPolicy(&info, perm)
+
+	var policyId int
+	for i := 0; i < 10; i++ {
+		policyId, err = ranger.CreatePolicy(rangerEndpoint, rangerUser, rangerPassword, info)
+		if err != nil {
+			time.Sleep(time.Second * 2)
+			continue
+		} else {
+			break
+		}
+	}
+
+	if err != nil {
+		return brokerapi.Binding{}, Credentials{}, err
+	}
+
+	fmt.Println("create policy done......")
+
+	policyIdStr := strconv.Itoa(policyId)
+
 	mycredentials := Credentials{
 		Uri:      "",
-		Hostname: "",
-		Port:     "",
-		Username: "",
-		Password: "",
+		Hostname: strings.Split(myServiceInfo.Url, ":")[0],
+		Port:     strings.Split(myServiceInfo.Url, ":")[1],
+		Username: newAccount,
+		Password: policyIdStr,  //通过这个参数来传递policyId
 		Name:     myServiceInfo.Database,
 	}
 
@@ -159,6 +224,34 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 }
 
 func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycredentials *Credentials) error {
+	fmt.Println("DoUnbind......")
+
+	policyId, err := strconv.Atoi(myServiceInfo.Admin_password)
+	if err != nil {
+		return err
+	}
+
+	_, err = ranger.DeletePolicy(rangerEndpoint, rangerUser, rangerPassword, policyId)
+	if err != nil {
+		return err
+	}
+	fmt.Println("delete policy done......")
+
+	ldap, err := openldap.Initialize(ldapUrl)
+	if err != nil {
+		return err
+	}
+
+	err = ldap.Bind(ldapUser, ldapPassword)
+	if err != nil {
+		return err
+	}
+
+	err = deleteAccount(ldap, myServiceInfo.User)
+	if err != nil {
+		return err
+	}
+	fmt.Println("delete account done......")
 
 	return nil
 }
@@ -187,9 +280,9 @@ func newHdfsConfig() *hdfs.Configuration {
 	return config
 }
 
-func createDirectory(fs *hdfs.FileSystem, dpath string, fileMode os.FileMode) (bool, error) {
+func createDirectory(fs *hdfs.FileSystem, name string, fileMode os.FileMode) (bool, error) {
 	path := hdfs.Path{}
-	path.Name = dpath
+	path.Name = name
 
 	isCreated, err := fs.MkDirs(path, fileMode)
 	if err != nil {
@@ -197,6 +290,25 @@ func createDirectory(fs *hdfs.FileSystem, dpath string, fileMode os.FileMode) (b
 	}
 
 	return isCreated, nil
+}
+
+func deleteAccount(ldap *openldap.Ldap, user string) error {
+	err := ldap.Delete("uid="+user+",ou=People,dc=asiainfo,dc=com")
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func deleteDirectory(fs *hdfs.FileSystem, name string, recursive bool) (bool, error) {
+	path := hdfs.Path{}
+	path.Name = name
+
+	isDelete, err := fs.Delete(path, recursive)
+	if err != nil {
+		return isDelete, err
+	}
+	return isDelete, nil
 }
 
 func addAccount(ldap *openldap.Ldap, user, group string) error {

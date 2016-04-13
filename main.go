@@ -579,7 +579,6 @@ var mongoAdminUser string
 var mongoAdminPassword string
 
 func main() {
-	fmt.Println("main....")
 	//初始化参数，参数应该从环境变量中获取
 	var username, password string
 	//todo参数应该改为从环境变量中获取
@@ -605,7 +604,6 @@ func main() {
 	c, err := client.New(cfg)
 	if err != nil {
 		logger.Error("Can not init ectd client", err)
-		fmt.Println("------------------------>")
 	}
 	etcdapi = client.NewKeysAPI(c)
 
