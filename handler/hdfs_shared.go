@@ -2,7 +2,7 @@ package handler
 
 import (
 	"fmt"
-	hdfs "github.com/gowfs"
+	hdfs "github.com/vladimirvivien/gowfs"
 	"github.com/mqu/openldap"
 	"github.com/pivotal-cf/brokerapi"
 	"github.com/xmwilldo/ranger"
