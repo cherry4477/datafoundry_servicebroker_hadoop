@@ -567,7 +567,7 @@ func getenv(env string) string {
 	env_value := os.Getenv(env)
 	if env_value == "" {
 		fmt.Println("FATAL: NEED ENV", env)
-		fmt.Println("Exit...........")
+		fmt.Println("#Exit...........")
 		os.Exit(2)
 	}
 	fmt.Println("ENV:", env, env_value)
@@ -577,7 +577,7 @@ func getenv(env string) string {
 //定义日志和etcd的全局变量，以及其他变量
 var logger lager.Logger
 var etcdapi client.KeysAPI
-var servcieBrokerName string = "zookeeper"
+var servcieBrokerName string = "hadoop"
 var etcdEndPoint, etcdUser, etcdPassword string
 var serviceBrokerPort string
 var mongoUrl string

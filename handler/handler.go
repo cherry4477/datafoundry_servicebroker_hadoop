@@ -98,6 +98,24 @@ func getguid() string {
 	return getmd5string(base64.URLEncoding.EncodeToString(b))
 }
 
+func getmd5stringcut(s string) string {
+	h := md5.New()
+	h.Write([]byte(s))
+	str := hex.EncodeToString(h.Sum(nil))
+	guid := []rune(str)
+
+	return string(guid[0:15])
+}
+
+func getRandom() string {
+	b := make([]byte, 48)
+
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return ""
+	}
+	return getmd5stringcut(base64.URLEncoding.EncodeToString(b))
+}
+
 func getenv(env string) string {
 	env_value := os.Getenv(env)
 	if env_value == "" {
