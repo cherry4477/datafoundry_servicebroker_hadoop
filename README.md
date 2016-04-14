@@ -1,11 +1,11 @@
-# datafoundry_servicebroker_mongodb_aws
-a servie broker for mongodb on was
+# datafoundry_servicebroker_hadoop
+a servie broker for hadoop
 
 
 # install 
 
 git clone ...
 
-go build -o mongodb_aws 
+go build -o hadoop_sb
 
-./mongodb_aws 
+./hadoop_sb 
