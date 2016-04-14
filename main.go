@@ -340,6 +340,12 @@ func (myBroker *myServiceBroker) Bind(instanceID, bindingID string, details brok
 
 	//判断绑定是否存在，如果存在就报错
 	resp, err = etcdget("/servicebroker/" + servcieBrokerName + "/instance/" + instanceID + "/binding")
+	if err != nil || !resp.Node.Dir {
+		logger.Error("Can not get instance binding information from etcd", err) //所有这些出错消息最好命名为常量，放到开始的时候
+		return brokerapi.Binding{}, brokerapi.ErrInstanceDoesNotExist
+	} else {
+		logger.Debug("Successful get instance bingding information from etcd. NodeInfo is " + resp.Node.Key)
+	}
 	for i := 0; i < len(resp.Node.Nodes); i++ {
 		if resp.Node.Nodes[i].Dir && strings.HasSuffix(resp.Node.Nodes[i].Key, bindingID) {
 			logger.Info("ErrBindingAlreadyExists " + instanceID)
@@ -571,7 +577,7 @@ func getenv(env string) string {
 //定义日志和etcd的全局变量，以及其他变量
 var logger lager.Logger
 var etcdapi client.KeysAPI
-var servcieBrokerName string = "hdfs"
+var servcieBrokerName string = "hadoop"
 var etcdEndPoint, etcdUser, etcdPassword string
 var serviceBrokerPort string
 var mongoUrl string

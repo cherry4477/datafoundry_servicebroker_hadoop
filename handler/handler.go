@@ -7,19 +7,23 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/pivotal-cf/brokerapi"
+	"github.com/xmwilldo/ranger"
 	"io"
 	"os"
 )
 
 type ServiceInfo struct {
-	Service_name   string `json:"service_name"`
-	Plan_name      string `json:"plan_name"`
-	Url            string `json:"url"`
-	Admin_user     string `json:"admin_user,omitempty"`
-	Admin_password string `json:"admin_password,omitempty"`
-	Database       string `json:"database,omitempty"`
-	User           string `json:"user"`
-	Password       string `json:"password"`
+	Service_name   string                `json:"service_name"`
+	Plan_name      string                `json:"plan_name"`
+	Url            string                `json:"url"`
+	Admin_user     string                `json:"admin_user,omitempty"`
+	Admin_password string                `json:"admin_password,omitempty"`
+	Database       string                `json:"database,omitempty"`
+	User           string                `json:"user"`
+	Password       string                `json:"password"`
+	PolicyInfo     ranger.HdfsPolicyInfo `json:"policyInfo, omitempty"`
+	Bind_user      string                `json:"bind_user, omitempty"`
+	Policy_id      int                   `json:"policy_id, omitempty"`
 }
 
 type Credentials struct {
