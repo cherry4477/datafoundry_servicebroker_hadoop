@@ -11,9 +11,14 @@ COPY . /usr/local/go/src/github.com/asiainfoLDP/datafoundry_servicebroker_hadoop
 
 WORKDIR /usr/local/go/src/github.com/asiainfoLDP/datafoundry_servicebroker_hadoop 
 
-RUN apt-get update
+RUN cat /etc/debian_version
 
-RUN apt-get install -y libldap2-dev
+RUN more /etc/apt/sources.list
+
+RUN apt-get update 
+
+RUN apt-get install -y --no-install-recommends libldap2-dev \
+	&& rm -rf /var/lib/apt/lists/*
 
 RUN go get github.com/tools/godep \
     && godep go build 
