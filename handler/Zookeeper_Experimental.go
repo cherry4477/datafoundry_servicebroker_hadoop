@@ -96,7 +96,7 @@ func (handler *zookeeperHandler) DoDeprovision(myServiceInfo *ServiceInfo, async
 	}
 	defer conn.Close()
 
-	adminAuth := zookeeperAdminUser + ":" + zookeeperAdminPassword
+	adminAuth := myServiceInfo.User + ":" + myServiceInfo.Password
 	err = conn.AddAuth(aclScheme, []byte(adminAuth))
 	if err != nil {
 		return brokerapi.IsAsync(false), err

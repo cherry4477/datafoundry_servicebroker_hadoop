@@ -12,10 +12,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -55,7 +55,7 @@ import (
 // ------------------------------------------ RESULTS methods ---------------------------------------------
 /*
 
-	openldap C API :
+	openldap C API : 
 
     int ldap_count_messages( LDAP *ld, LdapMessage *result )
     LdapMessage *ldap_first_message( LDAP *ld, LdapMessage *result )
@@ -204,14 +204,14 @@ func (self *LdapEntry) GetValues(attr string) []string {
 	defer C.free(unsafe.Pointer(_attr))
 
 	var bv **C.struct_berval
-
+	
 	//API: struct berval **ldap_get_values_len(LDAP *ld, LDAPMessage *entry, char *attr)
 	bv = C.ldap_get_values_len(self.ldap.conn, self.entry, _attr)
 
 	var i int
 	count := int(C.ldap_count_values_len(bv))
 
-	for i = 0; i < count; i++ {
+	for i = 0 ; i < count; i++ {
 		s = append(s, C.GoStringN(C._berval_get_value(bv, C.int(i)), C._berval_get_len(bv, C.int(i))))
 	}
 
@@ -262,14 +262,15 @@ func (self *Ldap) Result() (*LdapMessage, error) {
 //
 // returns -1 on error.
 //
-func (self *LdapMessage) MsgFree() int {
-	if self.msg != nil {
-		rv := C.ldap_msgfree(self.msg)
-		self.msg = nil
-		return int(rv)
-	}
-	return -1
+func (self *LdapMessage) MsgFree() int{
+        if self.msg != nil {
+                rv := C.ldap_msgfree(self.msg)
+                self.msg = nil
+                return int(rv)
+        }
+        return -1
 }
+
 
 //  ---------------------------------------- DN Methods ---------------------------------------------------
 /*
