@@ -120,7 +120,7 @@ func (handler *zookeeperHandler) DoBind(myServiceInfo *ServiceInfo, bindingID st
 	//share 模式只能是该数据库
 	path := myServiceInfo.Database
 	//share 模式，只是这个数据库的读写
-	var zkrole int32 = zk.PermCreate + zk.PermRead
+	var zkrole int32 = zk.PermAll
 	//完成变量赋值以后，开始准备创建用户
 	//初始化mongodb的链接串
 	servers := strings.Split(zkUrl, ",")
