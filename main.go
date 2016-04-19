@@ -183,7 +183,7 @@ func (myBroker *myServiceBroker) Provision(
 
 	//写入etcd 话说如果这个时候写入失败，那不就出现数据不一致的情况了么！todo
 	//先创建instanceid目录
-	for i := 0;i < 10 ;i++ {
+	for i := 0; i < 10; i++ {
 		_, err = etcdapi.Set(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID, "", &client.SetOptions{Dir: true}) //todo这些要么是常量，要么应该用环境变量
 		if err != nil {
 			time.Sleep(time.Second * 1)
@@ -322,7 +322,7 @@ func (myBroker *myServiceBroker) Deprovision(instanceID string, details brokerap
 		return brokerapi.IsAsync(false), errors.New("Internal Error!!")
 	}
 
-	for i := 0;i < 10 ;i++ {
+	for i := 0; i < 10; i++ {
 		//然后删除etcd里面的纪录，这里也有可能有不一致的情况
 		_, err = etcdapi.Delete(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID, &client.DeleteOptions{Recursive: true, Dir: true}) //todo这些要么是常量，要么应该用环境变量
 		if err != nil {
@@ -418,7 +418,7 @@ func (myBroker *myServiceBroker) Bind(instanceID, bindingID string, details brok
 
 	//把信息存储到etcd里面，同样这里有同步性的问题 todo怎么解决呢？
 	//先创建bindingID目录
-	for i := 0;i < 10 ;i++ {
+	for i := 0; i < 10; i++ {
 		_, err = etcdapi.Set(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID+"/binding/"+bindingID, "", &client.SetOptions{Dir: true}) //todo这些要么是常量，要么应该用环境变量
 
 		if err != nil {
@@ -519,7 +519,7 @@ func (myBroker *myServiceBroker) Unbind(instanceID, bindingID string, details br
 		return err
 	}
 
-	for i := 0;i < 10 ;i++ {
+	for i := 0; i < 10; i++ {
 		//然后删除etcd里面的纪录，这里也有可能有不一致的情况
 		_, err = etcdapi.Delete(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID+"/binding/"+bindingID, &client.DeleteOptions{Recursive: true, Dir: true}) //todo这些要么是常量，要么应该用环境变量
 		if err != nil {

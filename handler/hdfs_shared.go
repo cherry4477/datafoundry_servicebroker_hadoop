@@ -1,18 +1,18 @@
 package handler
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
-	hdfs "github.com/vladimirvivien/gowfs"
 	"github.com/mqu/openldap"
 	"github.com/pivotal-cf/brokerapi"
+	hdfs "github.com/vladimirvivien/gowfs"
 	"github.com/xmwilldo/ranger"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"strings"
 	"time"
-"net/http"
-"io/ioutil"
-"encoding/json"
-"errors"
 )
 
 var (
