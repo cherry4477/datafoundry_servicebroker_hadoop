@@ -22,7 +22,7 @@ type ServiceInfo struct {
 	User           string                `json:"user"`
 	Password       string                `json:"password"`
 	PolicyInfo     ranger.HdfsPolicyInfo `json:"policyInfo, omitempty"`
-	Bind_user      string                `json:"bind_user, omitempty"`
+	//Bind_user      string                `json:"bind_user, omitempty"`
 	Policy_id      int                   `json:"policy_id, omitempty"`
 }
 

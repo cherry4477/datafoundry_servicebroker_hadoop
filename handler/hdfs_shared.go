@@ -9,6 +9,10 @@ import (
 	"os"
 	"strings"
 	"time"
+"net/http"
+"io/ioutil"
+"encoding/json"
+"errors"
 )
 
 var (
@@ -30,6 +34,7 @@ type Hdfs_sharedHandler struct{}
 
 func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details brokerapi.ProvisionDetails, asyncAllowed bool) (brokerapi.ProvisionedServiceSpec, ServiceInfo, error) {
 	fmt.Println("DoProvision......")
+	//fmt.Println(details.ServiceID, details.PlanID)
 	config := newHdfsConfig()
 
 	fs, err := hdfs.NewFileSystem(*config)
@@ -80,7 +85,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 		fmt.Println("try create policy......")
 		policyId, err = ranger.CreatePolicy(rangerEndpoint, rangerUser, rangerPassword, info)
 		if err != nil {
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 3)
 			continue
 		} else {
 			break
@@ -139,39 +144,72 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 	}
 	fmt.Printf("Delete directory /servicebroker/%s done......\n", myServiceInfo.Database)
 
-	//policyId, err := strconv.Atoi(myServiceInfo.Admin_password)
-	//if err != nil {
-	//	return brokerapi.IsAsync(false), err
-	//}
-
-	_, err = ranger.DeletePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
+	info := ranger.HdfsPolicyInfo{}
+	fmt.Println(myServiceInfo.Policy_id)
+	resp, err := ranger.GetPolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
 	if err != nil {
+		fmt.Println("我在这里。。。。")
 		rollbackCreateDirectory(fs, myServiceInfo.Database)
 		return brokerapi.IsAsync(false), err
 	}
-	fmt.Printf("Delete policy %s done......\n", myServiceInfo.PolicyInfo.PolicyName)
+	if resp.StatusCode != http.StatusOK {
+		respbody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			rollbackCreateDirectory(fs, myServiceInfo.Database)
+			return brokerapi.IsAsync(false), err
+		}
+
+		return brokerapi.IsAsync(false), errors.New(string(respbody))
+	} else {
+		respbody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			rollbackCreateDirectory(fs, myServiceInfo.Database)
+			return brokerapi.IsAsync(false), err
+		}
+		err = json.Unmarshal(respbody, &info)
+		if err != nil {
+			rollbackCreateDirectory(fs, myServiceInfo.Database)
+			return brokerapi.IsAsync(false), err
+		}
+	}
+
+	var userList []string
+	for _, perm := range info.PermMapList {
+		for _, user := range perm.UserList {
+			userList = append(userList, user)
+		}
+	}
+	fmt.Println(userList)
 
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
-		rollbackCreatePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo)
 		rollbackCreateDirectory(fs, myServiceInfo.Database)
 		return brokerapi.IsAsync(false), err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
-		rollbackCreatePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo)
 		rollbackCreateDirectory(fs, myServiceInfo.Database)
 		return brokerapi.IsAsync(false), err
 	}
 
-	err = deleteAccount(ldap, myServiceInfo.User)
+	for _, user := range userList {
+		err = deleteAccount(ldap, user)
+		if err != nil {
+			rollbackCreateDirectory(fs, myServiceInfo.Database)
+			return brokerapi.IsAsync(false), err
+		}
+	}
+
+	fmt.Printf("Delete account %a done......\n", userList)
+
+	_, err = ranger.DeletePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
 	if err != nil {
-		rollbackCreatePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo)
+		rollbackCreateAccount(myServiceInfo.User)
 		rollbackCreateDirectory(fs, myServiceInfo.Database)
 		return brokerapi.IsAsync(false), err
 	}
-	fmt.Printf("Delete account %s done......\n", myServiceInfo.User)
+	fmt.Printf("Delete policy %s done......\n", myServiceInfo.PolicyInfo.PolicyName)
 
 	return brokerapi.IsAsync(false), nil
 }
@@ -192,32 +230,41 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 	if err != nil {
 		return brokerapi.Binding{}, Credentials{}, err
 	}
-	myServiceInfo.Bind_user = newAccount
+	//myServiceInfo.Bind_user = newAccount
 	fmt.Printf("Create account %s done......\n", newAccount)
 
 	//policyName := getRandom()
 
-	//info := myServiceInfo.PolicyInfo
+	info := ranger.HdfsPolicyInfo{}
 
-	ranger.AddUserToPermission(&myServiceInfo.PolicyInfo.PermMapList[0], newAccount)
-	//myServiceInfo.PolicyInfo = info
+	resp, err := ranger.GetPolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
 
-	//perm := ranger.InitPermission()
-	//ranger.AddUserToPermission(&perm, newAccount)
-	//ranger.AddGroupToPermission(&perm, "broker")
-	//ranger.AddPermToPermission(&perm, "read", "write", "execute")
-	//ranger.AddPermissionToPolicy(&info, perm)
+	if resp.StatusCode != http.StatusOK {
+		respbody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return brokerapi.Binding{}, Credentials{}, err
+		}
 
-	//policyId, err := strconv.Atoi(myServiceInfo.Admin_password)
-	//if err != nil {
-	//	return brokerapi.Binding{}, Credentials{}, err
-	//}
+		return brokerapi.Binding{}, Credentials{}, errors.New(string(respbody))
+	} else {
+		respbody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return brokerapi.Binding{}, Credentials{}, err
+		}
+		err = json.Unmarshal(respbody, &info)
+		fmt.Println(info)
+		if err != nil {
+			return brokerapi.Binding{}, Credentials{}, err
+		}
+	}
+
+	ranger.AddUserToPermission(&info.PermMapList[0], newAccount)
 
 	for i := 0; i < 10; i++ {
 		fmt.Println("try update policy......")
-		_, err = ranger.UpdatePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.PolicyInfo, myServiceInfo.Policy_id)
+		_, err = ranger.UpdatePolicy(rangerEndpoint, rangerUser, rangerPassword, info, myServiceInfo.Policy_id)
 		if err != nil {
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 3)
 			continue
 		} else {
 			break
@@ -231,16 +278,13 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 
 	fmt.Printf("Update policy %s done......\n", myServiceInfo.PolicyInfo.PolicyName)
 
-	//policyIdStr := strconv.Itoa(policyId)
-
 	mycredentials := Credentials{
-		Uri:      "",
+		Uri:      myServiceInfo.Url,
 		Hostname: strings.Split(myServiceInfo.Url, ":")[0],
 		Port:     strings.Split(myServiceInfo.Url, ":")[1],
 		Username: newAccount,
 		Password: "", //通过这个参数来传递policyId
 		Name:     myServiceInfo.Database,
-		//Policy_id: myServiceInfo.Policy_id,
 	}
 
 	myBinding := brokerapi.Binding{Credentials: mycredentials}
@@ -251,44 +295,63 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycredentials *Credentials) error {
 	fmt.Println("DoUnbind......")
 
-	//policyId, err := strconv.Atoi(myServiceInfo.Admin_password)
-	//if err != nil {
-	//	return err
-	//}
-
-	info := myServiceInfo.PolicyInfo
-	userList := info.PermMapList[0].UserList
-	for k, v := range userList {
-		if v == myServiceInfo.Bind_user {
-			kk := k + 1
-			userList = append(userList[:k], userList[kk:]...)
-		}
-	}
-
-	_, err := ranger.UpdatePolicy(rangerEndpoint, rangerUser, rangerPassword, info, myServiceInfo.Policy_id)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("Delete policy %s done......\n", myServiceInfo.PolicyInfo.PolicyName)
-
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
-		rollbackCreatePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo)
 		return err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
-		rollbackCreatePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo)
 		return err
 	}
 
-	err = deleteAccount(ldap, myServiceInfo.User)
+	err = deleteAccount(ldap, mycredentials.Username)
 	if err != nil {
-		rollbackCreatePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo)
 		return err
 	}
-	fmt.Printf("Delete account %s done......\n", myServiceInfo.User)
+	fmt.Printf("Delete account %s done......\n", mycredentials.Username)
+
+	info := ranger.HdfsPolicyInfo{}
+
+	resp, err := ranger.GetPolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
+	if err != nil {
+		rollbackCreateAccount(mycredentials.Username)
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		respbody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			rollbackCreateAccount(mycredentials.Username)
+			return err
+		}
+
+		return errors.New(string(respbody))
+	} else {
+		respbody, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			rollbackCreateAccount(mycredentials.Username)
+			return err
+		}
+		err = json.Unmarshal(respbody, &info)
+		if err != nil {
+			rollbackCreateAccount(mycredentials.Username)
+			return err
+		}
+	}
+
+	fmt.Println(info.PermMapList)
+
+	ranger.RemoveUserFromPermission(&info, mycredentials.Username)
+
+	fmt.Println(info.PermMapList)
+
+	_, err = ranger.UpdatePolicy(rangerEndpoint, rangerUser, rangerPassword, info, myServiceInfo.Policy_id)
+	if err != nil {
+		rollbackCreateAccount(mycredentials.Username)
+		return err
+	}
+	fmt.Printf("Delete user in policy %s done......\n", myServiceInfo.PolicyInfo.PolicyName)
 
 	return nil
 }
@@ -448,23 +511,52 @@ func rollbackDeleteAccount(user string) {
 	}
 }
 
-func rollbackCreatePolicy(rangerEndpoint, rangerUser, rangerPassword string, myServiceInfo *ServiceInfo) {
-	fmt.Println("Error occurred ! Rollback create policy......")
+func rollbackCreateAccount(user string) {
+	fmt.Println("Error occurred ! Rollback create account......")
 	var err error
 	for i := 0; i < 10; i++ {
-		fmt.Println("try create policy......")
-		policyId, err := ranger.CreatePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.PolicyInfo)
+		ldap, err := openldap.Initialize(ldapUrl)
+		if err != nil {
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		err = ldap.Bind(ldapUser, ldapPassword)
+		if err != nil {
+			time.Sleep(time.Second * 2)
+			continue
+		}
+		err = addAccount(ldap, user, "broker")
 		if err != nil {
 			time.Sleep(time.Second * 2)
 			continue
 		} else {
-			myServiceInfo.Policy_id = policyId
 			break
 		}
 	}
 	if err == nil {
-		fmt.Printf("Rollback create policy /%s done......\n", myServiceInfo.PolicyInfo.PolicyName)
+		fmt.Printf("Rollback create account /%s done......\n", user)
 	} else {
 		fmt.Println("Rollback failed......")
 	}
 }
+
+//func rollbackCreatePolicy(rangerEndpoint, rangerUser, rangerPassword string, myServiceInfo *ServiceInfo) {
+//	fmt.Println("Error occurred ! Rollback create policy......")
+//	var err error
+//	for i := 0; i < 10; i++ {
+//		fmt.Println("try create policy......")
+//		policyId, err := ranger.CreatePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.PolicyInfo)
+//		if err != nil {
+//			time.Sleep(time.Second * 3)
+//			continue
+//		} else {
+//			myServiceInfo.Policy_id = policyId
+//			break
+//		}
+//	}
+//	if err == nil {
+//		fmt.Printf("Rollback create policy /%s done......\n", myServiceInfo.PolicyInfo.PolicyName)
+//	} else {
+//		fmt.Println("Rollback failed......")
+//	}
+//}

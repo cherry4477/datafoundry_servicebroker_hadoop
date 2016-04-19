@@ -183,7 +183,16 @@ func (myBroker *myServiceBroker) Provision(
 
 	//写入etcd 话说如果这个时候写入失败，那不就出现数据不一致的情况了么！todo
 	//先创建instanceid目录
-	_, err = etcdapi.Set(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID, "", &client.SetOptions{Dir: true}) //todo这些要么是常量，要么应该用环境变量
+	for i := 0;i < 10 ;i++ {
+		_, err = etcdapi.Set(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID, "", &client.SetOptions{Dir: true}) //todo这些要么是常量，要么应该用环境变量
+		if err != nil {
+			time.Sleep(time.Second * 1)
+			continue
+		} else {
+			break
+		}
+	}
+	//_, err = etcdapi.Set(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID, "", &client.SetOptions{Dir: true}) //todo这些要么是常量，要么应该用环境变量
 	if err != nil {
 		logger.Error("Can not create instance "+instanceID+" in etcd", err) //todo都应该改为日志key
 		return brokerapi.ProvisionedServiceSpec{}, err
@@ -313,8 +322,16 @@ func (myBroker *myServiceBroker) Deprovision(instanceID string, details brokerap
 		return brokerapi.IsAsync(false), errors.New("Internal Error!!")
 	}
 
-	//然后删除etcd里面的纪录，这里也有可能有不一致的情况
-	_, err = etcdapi.Delete(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID, &client.DeleteOptions{Recursive: true, Dir: true}) //todo这些要么是常量，要么应该用环境变量
+	for i := 0;i < 10 ;i++ {
+		//然后删除etcd里面的纪录，这里也有可能有不一致的情况
+		_, err = etcdapi.Delete(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID, &client.DeleteOptions{Recursive: true, Dir: true}) //todo这些要么是常量，要么应该用环境变量
+		if err != nil {
+			time.Sleep(time.Second * 1)
+			continue
+		} else {
+			break
+		}
+	}
 	if err != nil {
 		logger.Error("Can not delete instance "+instanceID+" in etcd", err) //todo都应该改为日志key
 		return brokerapi.IsAsync(false), errors.New("Internal Error!!")
@@ -401,7 +418,16 @@ func (myBroker *myServiceBroker) Bind(instanceID, bindingID string, details brok
 
 	//把信息存储到etcd里面，同样这里有同步性的问题 todo怎么解决呢？
 	//先创建bindingID目录
-	_, err = etcdapi.Set(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID+"/binding/"+bindingID, "", &client.SetOptions{Dir: true}) //todo这些要么是常量，要么应该用环境变量
+	for i := 0;i < 10 ;i++ {
+		_, err = etcdapi.Set(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID+"/binding/"+bindingID, "", &client.SetOptions{Dir: true}) //todo这些要么是常量，要么应该用环境变量
+
+		if err != nil {
+			time.Sleep(time.Second * 1)
+			continue
+		} else {
+			break
+		}
+	}
 	if err != nil {
 		logger.Error("Can not create binding "+bindingID+" in etcd", err) //todo都应该改为日志key
 		return brokerapi.Binding{}, err
@@ -493,8 +519,16 @@ func (myBroker *myServiceBroker) Unbind(instanceID, bindingID string, details br
 		return err
 	}
 
-	//然后删除etcd里面的纪录，这里也有可能有不一致的情况
-	_, err = etcdapi.Delete(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID+"/binding/"+bindingID, &client.DeleteOptions{Recursive: true, Dir: true}) //todo这些要么是常量，要么应该用环境变量
+	for i := 0;i < 10 ;i++ {
+		//然后删除etcd里面的纪录，这里也有可能有不一致的情况
+		_, err = etcdapi.Delete(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID+"/binding/"+bindingID, &client.DeleteOptions{Recursive: true, Dir: true}) //todo这些要么是常量，要么应该用环境变量
+		if err != nil {
+			time.Sleep(time.Second * 1)
+			continue
+		} else {
+			break
+		}
+	}
 	if err != nil {
 		logger.Error("Can not delete binding "+bindingID+" in etcd", err) //todo都应该改为日志key
 		return errors.New("Can not delete binding " + bindingID + " in etcd")
@@ -522,8 +556,16 @@ func etcdget(key string) (*client.Response, error) {
 	return resp, err
 }
 
-func etcdset(key string, value string) (*client.Response, error) {
-	resp, err := etcdapi.Set(context.Background(), key, value, nil)
+func etcdset(key string, value string) (resp *client.Response, err error) {
+	for i := 0; i < 10; i++ {
+		resp, err = etcdapi.Set(context.Background(), key, value, nil)
+		if err != nil {
+			time.Sleep(time.Second * 1)
+			continue
+		} else {
+			break
+		}
+	}
 	if err != nil {
 		logger.Error("Can not set "+key+" from etcd", err)
 	} else {
