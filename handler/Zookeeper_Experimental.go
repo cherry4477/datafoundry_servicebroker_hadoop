@@ -12,6 +12,7 @@ var zookeeperUrl string
 var zookeeperAdminUser string
 var zookeeperAdminPassword string
 var aclScheme string = "digest"
+var gsbrootpath string = "/servicebroker"
 
 type zookeeperHandler struct{}
 
@@ -31,31 +32,29 @@ func (handler *zookeeperHandler) DoProvision(instanceID string, details brokerap
 
 	newusername := getguid()
 	newpassword := getguid()
-	path := "/servicebroke/" + instanceID
+	path := gsbrootpath + "/" + instanceID
 	flags := int32(0)
 	aclnew := zk.DigestACL(zk.PermAll, newusername, newpassword)
+
+	existsbroot, _, err := conn.Exists(gsbrootpath)
+	if err != nil {
+		fmt.Println("get", gsbrootpath, err, existsbroot)
+		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
+	}
+	if existsbroot == false {
+		_, err = conn.Create(gsbrootpath, []byte(instanceID), flags, aclnew)
+		if err != nil {
+			fmt.Println("create", gsbrootpath, err)
+			return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
+		}
+	}
+
 	//创建一个名为instanceID的path，并随机的创建用户名和密码，这个用户名是该path的管理员
 	_, err = conn.Create(path, []byte(instanceID), flags, aclnew)
 	if err != nil {
+		fmt.Println("create:", path, err)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
-
-	conn2, _, err := zk.Connect(servers, sessionTimeout)
-	if err != nil {
-		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
-	}
-	defer conn2.Close()
-
-	err = conn2.AddAuth(aclScheme, []byte(newusername+":"+newpassword))
-	if err != nil {
-		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
-	}
-
-	exists, _, err := conn2.Exists(path)
-	if err != nil {
-		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
-	}
-	fmt.Printf("Before disconnect: %v  %+v \n", path, exists)
 
 	//为dashbord赋值 todo dashboard应该提供一个界面才对
 	DashboardURL := newusername + ":" + newpassword + "@" + strings.Split(zookeeperUrl, ":")[0] + " instance=" + instanceID
