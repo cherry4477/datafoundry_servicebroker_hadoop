@@ -60,6 +60,7 @@ func (handler *zookeeperHandler) DoProvision(instanceID string, details brokerap
 
 	//为dashbord赋值 todo dashboard应该提供一个界面才对
 	DashboardURL := newusername + ":" + newpassword + "@" + strings.Split(zookeeperUrl, ":")[0] + " instance=" + instanceID
+	fmt.Println("DashboardURL:", DashboardURL)
 
 	//赋值隐藏属性
 	myServiceInfo := ServiceInfo{
