@@ -34,7 +34,6 @@ func (handler *zookeeperHandler) DoProvision(instanceID string, details brokerap
 	newpassword := getguid()
 	path := gsbrootpath + "/" + instanceID
 	flags := int32(0)
-	aclnew := zk.DigestACL(zk.PermAll, newusername, newpassword)
 
 	existsbroot, _, err := conn.Exists(gsbrootpath)
 	if err != nil {
@@ -42,13 +41,16 @@ func (handler *zookeeperHandler) DoProvision(instanceID string, details brokerap
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 	if existsbroot == false {
-		_, err = conn.Create(gsbrootpath, []byte(instanceID), flags, aclnew)
+		// anyone can operate the node /servicebroker
+		aclsb := zk.WorldACL(zk.PermAll)
+		_, err = conn.Create(gsbrootpath, []byte(instanceID), flags, aclsb)
 		if err != nil {
 			fmt.Println("create", gsbrootpath, err)
 			return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 		}
 	}
 
+	aclnew := zk.DigestACL(zk.PermAll, newusername, newpassword)
 	//创建一个名为instanceID的path，并随机的创建用户名和密码，这个用户名是该path的管理员
 	_, err = conn.Create(path, []byte(instanceID), flags, aclnew)
 	if err != nil {
