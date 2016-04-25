@@ -59,7 +59,7 @@
 		},
 		{
 			"ImportPath": "github.com/xmwilldo/ranger",
-			"Rev": "ae88c2b5984c9345066d0ed61b20f9e8b08862ad"
+			"Rev": "33e0a7c6c8724c76845b4c413eef9ff06544643f"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",

@@ -11,9 +11,10 @@ COPY . /usr/local/go/src/github.com/asiainfoLDP/datafoundry_servicebroker_hadoop
 
 WORKDIR /usr/local/go/src/github.com/asiainfoLDP/datafoundry_servicebroker_hadoop 
 
-RUN cat /etc/debian_version
+
 
 RUN more /etc/apt/sources.list
+RUN cat /etc/debian_version
 
 RUN apt-get update 
 

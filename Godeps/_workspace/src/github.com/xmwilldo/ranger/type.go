@@ -18,7 +18,7 @@ type HdfsPolicyInfo struct {
 	Description    string       `json:"description, omitempty"`
 	RepositoryName string       `json:"repositoryName"`
 	RepositoryType string       `json:"repositoryType"`
-	IsEnabled      string       `json:"isEnabled"`
+	IsEnabled      bool         `json:"isEnabled"`
 	IsRecursive    bool         `json:"isRecursive"`
 	IsAuditEnabled bool         `json:"isAuditEnabled"`
 	PermMapList    []Permission `json:"permMapList, omitempty"`
@@ -30,7 +30,7 @@ type result struct {
 	UpdateDate     string       `json:"updateDate"`
 	Owner          string       `json:"owner"`
 	UpdatedBy      string       `json:"updatedBy"`
-	PlicyName      string       `json:"policyName"`
+	PolicyName     string       `json:"policyName"`
 	ResourceName   string       `json:"resourceName"`
 	Description    string       `json:"description, omitempty"`
 	RepositoryName string       `json:"repositoryName"`
@@ -50,7 +50,7 @@ type Permission struct {
 }
 
 func NewHdfsPolicyInfo() (info HdfsPolicyInfo) {
-	info.IsEnabled = "true"
+	info.IsEnabled = true
 	info.IsRecursive = true
 	info.IsAuditEnabled = true
 	info.PermMapList = make([]Permission, 0)
