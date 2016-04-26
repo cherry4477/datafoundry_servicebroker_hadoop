@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/asiainfoLDP/datafoundry_servicebroker_hadoop",
 	"GoVersion": "go1.5",
-	"GodepVersion": "v62",
+	"GodepVersion": "v60",
 	"Deps": [
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
@@ -49,6 +49,18 @@
 			"Rev": "218e9c81c0dd8b3b18172b2bbfad92cc7d6db55f"
 		},
 		{
+			"ImportPath": "github.com/sdming/goh",
+			"Rev": "7071d6d7ab1fa0b2fc46bb4fa913944c800bd774"
+		},
+		{
+			"ImportPath": "github.com/sdming/goh/Hbase",
+			"Rev": "7071d6d7ab1fa0b2fc46bb4fa913944c800bd774"
+		},
+		{
+			"ImportPath": "github.com/sdming/goh/thrift",
+			"Rev": "7071d6d7ab1fa0b2fc46bb4fa913944c800bd774"
+		},
+		{
 			"ImportPath": "github.com/ugorji/go/codec",
 			"Rev": "a396ed22fc049df733440d90efe17475e3929ccb"
 		},
@@ -59,7 +71,7 @@
 		},
 		{
 			"ImportPath": "github.com/xmwilldo/ranger",
-			"Rev": "33e0a7c6c8724c76845b4c413eef9ff06544643f"
+			"Rev": "a9f27918c2819b372e069e982c384b3fcc2dc626"
 		},
 		{
 			"ImportPath": "golang.org/x/net/context",

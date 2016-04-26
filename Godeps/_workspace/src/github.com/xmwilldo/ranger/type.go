@@ -24,6 +24,21 @@ type HdfsPolicyInfo struct {
 	PermMapList    []Permission `json:"permMapList, omitempty"`
 }
 
+type HbasePolicyInfo struct {
+	PolicyName     string       `json:"policyName"`
+	Tables         string       `json:"tables"`
+	ColumnFamilies string       `json:"columnFamilies"`
+	Columns        string       `json:"columns"`
+	Description    string       `json:"description, omitempty"`
+	RepositoryName string       `json:"repositoryName"`
+	RepositoryType string       `json:"repositoryType"`
+	IsEnabled      bool         `json:"isEnabled"`
+	IsAuditEnabled bool         `json:"isAuditEnabled"`
+	TableType      string       `json:"tableType"`
+	ColumnType     string       `json:"columnType"`
+	PermMapList    []Permission `json:"permMapList, omitempty"`
+}
+
 type result struct {
 	Id             int          `json:"id"`
 	createDate     string       `json:"createDate"`
@@ -58,31 +73,12 @@ func NewHdfsPolicyInfo() (info HdfsPolicyInfo) {
 	return info
 }
 
-func NewUserList(a ...string) []string {
-	userList := make([]string, 0)
-	for _, user := range a {
-		userList = append(userList, user)
-	}
-
-	return userList
-}
-
-func NewGroupList(a ...string) []string {
-	groupList := make([]string, 0)
-	for _, group := range a {
-		groupList = append(groupList, group)
-	}
-
-	return groupList
-}
-
-func NewPermList(a ...string) []string {
-	permList := make([]string, 0)
-	for _, perm := range a {
-		permList = append(permList, perm)
-	}
-
-	return permList
+func NewHbasePolicyInfo() (info HbasePolicyInfo) {
+	info.IsEnabled = true
+	info.IsAuditEnabled = true
+	info.TableType = "Inclusion"
+	info.ColumnType = "Inclusion"
+	return info
 }
 
 func InitPermission() Permission {
@@ -92,29 +88,4 @@ func InitPermission() Permission {
 	p.PermList = make([]string, 0)
 
 	return p
-}
-
-func updatePermission(p *Permission, userList, groupList, permList []string) {
-	if userList == nil {
-		userList = make([]string, 0)
-	}
-	if groupList == nil {
-		groupList = make([]string, 0)
-	}
-	if permList == nil {
-		permList = make([]string, 0)
-	}
-	p.UserList = userList
-	p.GroupList = groupList
-	p.PermList = permList
-	return
-}
-
-func NewPermMapList(a ...Permission) []Permission {
-	permissionList := make([]Permission, 0)
-	for _, permission := range a {
-		permissionList = append(permissionList, permission)
-	}
-
-	return permissionList
 }
