@@ -14,12 +14,17 @@ WORKDIR /usr/local/go/src/github.com/asiainfoLDP/datafoundry_servicebroker_hadoo
 
 
 RUN more /etc/apt/sources.list
+
 RUN cat /etc/debian_version
 
 RUN apt-get update 
 
-RUN apt-get install -y --no-install-recommends libldap2-dev \
-	&& rm -rf /var/lib/apt/lists/*
+RUN apt-get install -y --no-install-recommends libldap2-dev 
+#	&& rm -rf /var/lib/apt/lists/*
+
+#COPY ./libldap2-dev_2.4.31-1+nmu2ubuntu8.2_amd64.deb /var/lib/dpkg/info/
+
+#COPY ./libldap2-dev:amd64.md5sums /var/lib/dpkg/info/
 
 RUN go get github.com/tools/godep \
     && godep go build 
