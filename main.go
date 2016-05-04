@@ -237,6 +237,10 @@ func (myBroker *myServiceBroker) LastOperation(instanceID string) (brokerapi.Las
 
 	//隐藏属性不得不单独获取
 	resp, err = etcdget("/servicebroker/" + servcieBrokerName + "/instance/" + instanceID + "/_info")
+	if err != nil {
+		logger.Error("Can not get instance information of "+instanceID+" from etcd.", err)
+		return brokerapi.LastOperation{}, brokerapi.ErrInstanceDoesNotExist
+	}
 	json.Unmarshal([]byte(resp.Node.Value), &myServiceInfo)
 
 	//生成具体的handler对象
@@ -302,6 +306,10 @@ func (myBroker *myServiceBroker) Deprovision(instanceID string, details brokerap
 
 	//隐藏属性不得不单独获取
 	resp, err = etcdget("/servicebroker/" + servcieBrokerName + "/instance/" + instanceID + "/_info")
+	if err != nil {
+		logger.Error("Can not get instance information of "+instanceID+" from etcd.", err)
+		return brokerapi.IsAsync(false), brokerapi.ErrInstanceDoesNotExist
+	}
 	json.Unmarshal([]byte(resp.Node.Value), &myServiceInfo)
 
 	//生成具体的handler对象
@@ -375,6 +383,10 @@ func (myBroker *myServiceBroker) Bind(instanceID, bindingID string, details brok
 
 	//从etcd中取得参数。
 	resp, err = etcdapi.Get(context.Background(), "/servicebroker/"+servcieBrokerName+"/instance/"+instanceID, &client.GetOptions{Recursive: true}) //改为环境变量
+	if err != nil {
+		logger.Error("Can not get instance "+instanceID+" from etcd.", err)
+		return brokerapi.Binding{}, brokerapi.ErrInstanceDoesNotExist
+	}
 
 	for i := 0; i < len(resp.Node.Nodes); i++ {
 		if !resp.Node.Nodes[i].Dir {
