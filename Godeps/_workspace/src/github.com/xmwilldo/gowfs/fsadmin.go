@@ -1,9 +1,13 @@
 package gowfs
 
-import "fmt"
-import "os"
-import "net/http"
-import "strconv"
+import (
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+)
 
 // Renames the specified path resource to a new name.
 // See HDFS FileSystem.rename()
@@ -43,6 +47,12 @@ func (fs *FileSystem) Delete(path Path, recursive bool) (bool, error) {
 	}
 
 	req, _ := http.NewRequest("DELETE", u.String(), nil)
+	cookieStr, err := getCookie()
+	if err != nil {
+		fmt.Println("cookie err")
+		return false, err
+	}
+	req.Header.Set("Cookie", cookieStr)
 	hdfsData, err := requestHdfsData(fs.client, *req)
 	if err != nil {
 		return false, err
@@ -180,12 +190,35 @@ func (fs *FileSystem) MkDirs(p Path, fm os.FileMode) (bool, error) {
 	}
 
 	req, _ := http.NewRequest("PUT", u.String(), nil)
+	cookieStr, err := getCookie()
+	if err != nil {
+		fmt.Println("cookie err")
+		return false, err
+	}
+	req.Header.Set("Cookie", cookieStr)
 	hdfsData, err := requestHdfsData(fs.client, *req)
 	if err != nil {
 		return false, err
 	}
 
 	return hdfsData.Boolean, nil
+}
+
+func getCookie() (string, error) {
+	fi, err := os.Open("/tmp/cookiejar.txt")
+	if err != nil {
+		return "", err
+	}
+	defer fi.Close()
+	fd, err := ioutil.ReadAll(fi)
+	if err != nil {
+		return "", err
+	}
+	str := string(fd)
+	str2 := strings.Split(str, "hadoop.auth")
+	cookieStr := "hadoop.auth=" + strings.TrimSpace(str2[1])
+
+	return cookieStr, err
 }
 
 // Creates a symlink where link -> destination
