@@ -1,4 +1,4 @@
-FROM golang:1.5.2
+FROM golang:1.6.0
 
 ENV BROKERPORT 8000
 EXPOSE 8000

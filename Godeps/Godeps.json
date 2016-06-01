@@ -1,7 +1,7 @@
 {
 	"ImportPath": "github.com/asiainfoLDP/datafoundry_servicebroker_hadoop",
-	"GoVersion": "go1.5",
-	"GodepVersion": "v60",
+	"GoVersion": "go1.6",
+	"GodepVersion": "v62",
 	"Deps": [
 		{
 			"ImportPath": "github.com/coreos/etcd/client",
