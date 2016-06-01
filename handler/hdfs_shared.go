@@ -1,16 +1,18 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/mqu/openldap"
 	"github.com/pivotal-cf/brokerapi"
-	hdfs "github.com/vladimirvivien/gowfs"
+	hdfs "github.com/xmwilldo/gowfs"
 	"github.com/xmwilldo/ranger"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -33,6 +35,20 @@ type Hdfs_sharedHandler struct{}
 func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details brokerapi.ProvisionDetails, asyncAllowed bool) (brokerapi.ProvisionedServiceSpec, ServiceInfo, error) {
 	fmt.Println("DoProvision......")
 	//fmt.Println(details.ServiceID, details.PlanID)
+
+	err := initCookie()
+	if err != nil {
+		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
+	}
+
+	princpalName := "wm" + getRandom()
+	err = createPrincpal(princpalName, "asiainfo")
+	if err != nil {
+		fmt.Println("create princpal err!")
+		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
+	}
+	fmt.Printf("create princpal %s@ASIAINFO.COM done......\n", princpalName)
+
 	config := newHdfsConfig()
 
 	fs, err := hdfs.NewFileSystem(*config)
@@ -48,7 +64,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	}
 	fmt.Printf("Create directory /servicebroker/%s done......\n", dname)
 
-	newAccount := "wm_" + getRandom()
+	newAccount := princpalName
 	policyName := getRandom()
 
 	ldap, err := openldap.Initialize(ldapUrl)
@@ -103,12 +119,12 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	DashboardURL := "http://"
 
 	myServiceInfo := ServiceInfo{
-		Url:        hdfsUrl,
-		Admin_user: "ocdp",
-		//Admin_password: "", //把创建好的policy的id通过这个参数传递
+		Url: hdfsUrl,
+		//Admin_user: princpalName,
+		//Admin_password: "asiainfo",
 		Database:       dname,
 		User:           newAccount,
-		Password:       "",
+		Password:       "asiainfo",
 		HdfsPolicyInfo: info,
 		Policy_id:      policyId,
 	}
@@ -129,6 +145,18 @@ func (handler *Hdfs_sharedHandler) DoLastOperation(myServiceInfo *ServiceInfo) (
 
 func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asyncAllowed bool) (brokerapi.IsAsync, error) {
 	fmt.Println("DoDeprovision......")
+
+	err := initCookie()
+	if err != nil {
+		return brokerapi.IsAsync(false), err
+	}
+
+	err = deletePrincpal(myServiceInfo.User)
+	if err != nil {
+		fmt.Println("delete princpal err!")
+		return brokerapi.IsAsync(false), err
+	}
+	fmt.Printf("delete princpal %s@ASIAINFO.COM done......\n", myServiceInfo.User)
 
 	config := newHdfsConfig()
 	fs, err := hdfs.NewFileSystem(*config)
@@ -213,6 +241,18 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 
 func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID string, details brokerapi.BindDetails) (brokerapi.Binding, Credentials, error) {
 	fmt.Println("DoBind......")
+
+	princpalName := "wm" + getRandom()
+	password := getRandom()
+	random := []rune(password)
+	password = string(random[0:8])
+	err := createPrincpal(princpalName, password)
+	if err != nil {
+		fmt.Println("create princpal err!")
+		return brokerapi.Binding{}, Credentials{}, err
+	}
+	fmt.Printf("create princpal %s@ASIAINFO.COM done......\n", princpalName)
+
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
 		return brokerapi.Binding{}, Credentials{}, err
@@ -222,7 +262,7 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 	if err != nil {
 		return brokerapi.Binding{}, Credentials{}, err
 	}
-	newAccount := "wm_" + getRandom()
+	newAccount := princpalName
 	err = addAccount(ldap, newAccount, "broker")
 	if err != nil {
 		return brokerapi.Binding{}, Credentials{}, err
@@ -280,7 +320,7 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 		Hostname: strings.Split(myServiceInfo.Url, ":")[0],
 		Port:     strings.Split(myServiceInfo.Url, ":")[1],
 		Username: newAccount,
-		Password: "",
+		Password: password,
 		Name:     myServiceInfo.Database,
 	}
 
@@ -291,6 +331,13 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 
 func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycredentials *Credentials) error {
 	fmt.Println("DoUnbind......")
+
+	err := deletePrincpal(mycredentials.Username)
+	if err != nil {
+		fmt.Println("delete princpal err!")
+		return err
+	}
+	fmt.Printf("delete princpal %s@ASIAINFO.COM done......\n", mycredentials.Username)
 
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
@@ -533,6 +580,65 @@ func rollbackCreateAccount(user string) {
 	} else {
 		fmt.Println("Rollback failed......")
 	}
+}
+
+func initCookie() error {
+	isExist := isExistfile("/tmp/cookiejar.txt")
+	if isExist {
+		err := os.Remove("/tmp/cookiejar.txt")
+		if err != nil {
+			return err
+		}
+	}
+
+	in := bytes.NewBuffer(nil)
+	cmd := exec.Command("sh")
+	cmd.Stdin = in
+	in.WriteString("curl -i -v --negotiate -u : -b /tmp/cookiejar.txt -c /tmp/cookiejar.txt http://10.1.130.127:50070/webhdfs/v1/?op=liststatus\n")
+	in.WriteString("exit\n")
+	if err := cmd.Run(); err != nil {
+		fmt.Println(err)
+		return err
+	}
+	return nil
+}
+
+func isExistfile(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil || os.IsExist(err)
+}
+
+func createPrincpal(name, password string) error {
+	in := bytes.NewBuffer(nil)
+	cmd := exec.Command("sh")
+	cmd.Stdin = in
+
+	go func() {
+		createStr := "kadmin -p 'admin/admin' -w 'admin' -q 'addprinc -pw " + password + " " + name + "'\n"
+		in.WriteString(createStr)
+		in.WriteString("exit\n")
+	}()
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func deletePrincpal(name string) error {
+	in := bytes.NewBuffer(nil)
+	cmd := exec.Command("sh")
+	cmd.Stdin = in
+
+	go func() {
+		//"kadmin -p 'admin/admin' -w 'admin' -q 'delprinc -force "+ name +"'"
+		deleteStr := "kadmin -p 'admin/admin' -w 'admin' -q 'delprinc -force " + name + "'\n"
+		in.WriteString(deleteStr)
+		in.WriteString("exit\n")
+	}()
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	return nil
 }
 
 //func rollbackCreatePolicy(rangerEndpoint, rangerUser, rangerPassword string, myServiceInfo *ServiceInfo) {

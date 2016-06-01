@@ -12,10 +12,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -49,7 +49,7 @@ int _ldap_add(LDAP *ld, char* dn, LDAPModStr **attrs){
 }
 
 int _ldap_modify(LDAP *ld, char* dn, LDAPModStr **mods ){
- 
+
 	// nota : cast (LDAPMod **) is possible because structs have same size
 	return ldap_modify_ext_s( ld, dn, (LDAPMod **)mods, NULL, NULL);
 }
@@ -74,20 +74,19 @@ import "C"
 
 import (
 	"errors"
-	"unsafe"
 	"fmt"
+	"unsafe"
 )
 
-
-func (self *Ldap) doModify(dn string, attrs map[string][]string, changeType int, full_add bool) (int){
+func (self *Ldap) doModify(dn string, attrs map[string][]string, changeType int, full_add bool) int {
 
 	_dn := C.CString(dn)
 	defer C.free(unsafe.Pointer(_dn))
-	
+
 	mods := make([]*C.LDAPModStr, len(attrs)+1)
 	// mods[len] = nil by default
 
-	count:= 0
+	count := 0
 	for key, values := range attrs {
 
 		// transform []string to C.char** null terminated array (attributes argument)
@@ -103,7 +102,7 @@ func (self *Ldap) doModify(dn string, attrs map[string][]string, changeType int,
 		mod.mod_op = C.int(changeType)
 		mod.mod_type = C.CString(key)
 		mod.mod_vals = &_values[0]
-		
+
 		defer C.free(unsafe.Pointer(mod.mod_type))
 
 		mods[count] = &mod
@@ -116,7 +115,7 @@ func (self *Ldap) doModify(dn string, attrs map[string][]string, changeType int,
 	if full_add {
 		// API: int ldap_add (LDAP *ld, LDAP_CONST char *dn, LDAPMod **mods )
 		rv = int(C._ldap_add(self.conn, _dn, &mods[0]))
-	} else{
+	} else {
 		// API: int ldap_modify (LDAP *ld, LDAP_CONST char *dn, LDAPMod **mods )
 		rv = int(C._ldap_modify(self.conn, _dn, &mods[0]))
 	}
@@ -126,7 +125,7 @@ func (self *Ldap) doModify(dn string, attrs map[string][]string, changeType int,
 	return rv
 }
 
-func (self *Ldap) Modify(dn string, attrs map[string][]string) (error){
+func (self *Ldap) Modify(dn string, attrs map[string][]string) error {
 
 	changeType := C.LDAP_MOD_REPLACE
 	full_add := false
@@ -138,7 +137,7 @@ func (self *Ldap) Modify(dn string, attrs map[string][]string) (error){
 	return nil
 }
 
-func (self *Ldap) ModifyDel(dn string, attrs map[string][]string) (error){
+func (self *Ldap) ModifyDel(dn string, attrs map[string][]string) error {
 
 	changeType := C.LDAP_MOD_DELETE
 	full_add := false
@@ -150,7 +149,7 @@ func (self *Ldap) ModifyDel(dn string, attrs map[string][]string) (error){
 	return nil
 }
 
-func (self *Ldap) ModifyAdd(dn string, attrs map[string][]string) (error){
+func (self *Ldap) ModifyAdd(dn string, attrs map[string][]string) error {
 
 	changeType := C.LDAP_MOD_ADD
 	full_add := false
@@ -161,7 +160,7 @@ func (self *Ldap) ModifyAdd(dn string, attrs map[string][]string) (error){
 	return nil
 }
 
-func (self *Ldap) Add(dn string, attrs map[string][]string) (error){
+func (self *Ldap) Add(dn string, attrs map[string][]string) error {
 
 	changeType := C.LDAP_MOD_ADD
 	full_add := true
@@ -172,7 +171,7 @@ func (self *Ldap) Add(dn string, attrs map[string][]string) (error){
 	return nil
 }
 
-func (self *Ldap) Delete(dn string) (error){
+func (self *Ldap) Delete(dn string) error {
 
 	_dn := C.CString(dn)
 	defer C.free(unsafe.Pointer(_dn))
@@ -203,7 +202,7 @@ func (self *Ldap) Delete(dn string) (error){
 // the search.
 // FIXME: support NULL and "" values for newSuperior parameter.
 //
-func (self *Ldap) Rename(dn string, newrdn string, newSuperior string, deleteOld bool) (error){
+func (self *Ldap) Rename(dn string, newrdn string, newSuperior string, deleteOld bool) error {
 
 	_dn := C.CString(dn)
 	defer C.free(unsafe.Pointer(_dn))
@@ -218,7 +217,7 @@ func (self *Ldap) Rename(dn string, newrdn string, newSuperior string, deleteOld
 	if deleteOld {
 		_delete = 1
 	}
- 
+
 	// API: int ldap_rename (LDAP *ld, char *newrdn, char *newSuperior, int deleteoldrdn)
 	rv := C._ldap_rename(self.conn, _dn, _newrdn, _newSuperior, _delete)
 
