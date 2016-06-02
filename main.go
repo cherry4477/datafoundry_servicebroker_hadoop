@@ -670,6 +670,7 @@ func main() {
 	//初始化serviceborker对象
 	serviceBroker := &myServiceBroker{}
 
+	fmt.Println("http_proxy=", getenv("http_proxy"), etcdEndPoint, etcdUser, etcdPassword)
 	//取得用户名和密码
 	resp, err := etcdget("/servicebroker/" + servcieBrokerName + "/username")
 	if err != nil {

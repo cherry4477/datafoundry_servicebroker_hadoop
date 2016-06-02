@@ -26,6 +26,8 @@ ADD ./config/start.sh /start.sh
 
 ADD . /usr/local/go/src/github.com/asiainfoLDP/datafoundry_servicebroker_hadoop
 
+ENV GODEBUG=cgocheck=0
+
 RUN go get github.com/tools/godep \
     && godep go build 
 

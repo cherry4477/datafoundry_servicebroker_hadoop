@@ -226,7 +226,7 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 		}
 	}
 
-	fmt.Printf("Delete account %a done......\n", userList)
+	fmt.Printf("Delete account %v done......\n", userList)
 
 	_, err = ranger.DeletePolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
 	if err != nil {
