@@ -29,4 +29,6 @@ ADD . /usr/local/go/src/github.com/asiainfoLDP/datafoundry_servicebroker_hadoop
 RUN go get github.com/tools/godep \
     && godep go build 
 
+RUN chmod u+x /start.sh
+
 CMD ["/start.sh"]
