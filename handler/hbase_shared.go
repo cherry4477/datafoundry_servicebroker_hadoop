@@ -34,35 +34,47 @@ type Hbase_sharedHandler struct{}
 func (handler *Hbase_sharedHandler) DoProvision(instanceID string, details brokerapi.ProvisionDetails, asyncAllowed bool) (brokerapi.ProvisionedServiceSpec, ServiceInfo, error) {
 	fmt.Println("DoProvision......")
 
-	tableName := getRandom()
-	err := createHbaseTable(tableName)
+	princpalName := "wm" + getRandom()
+	err := createPrincpal(princpalName, "asiainfo")
 	if err != nil {
+		fmt.Println("create princpal err!")
+		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
+	}
+	fmt.Printf("create princpal %s@ASIAINFO.COM done......\n", princpalName)
+
+	tableName := getRandom()
+	err = createHbaseTable(tableName)
+	if err != nil {
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 	fmt.Printf("Create Hbase table %s done......\n", tableName)
 
-	newAccount := "wm_" + getRandom()
-	policyName := getRandom()
+	newAccount := princpalName
 
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
 		rollbackDeleteHbaseTable(tableName)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
 		rollbackDeleteHbaseTable(tableName)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
 	err = addAccount(ldap, newAccount, "broker")
 	if err != nil {
 		rollbackDeleteHbaseTable(tableName)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 	fmt.Printf("Create account %s done......\n", newAccount)
 
+	policyName := getRandom()
 	info := newHbasePolicyInfo("ocdp_hbase", policyName, tableName)
 
 	perm := ranger.InitPermission()
@@ -86,6 +98,7 @@ func (handler *Hbase_sharedHandler) DoProvision(instanceID string, details broke
 	if err != nil {
 		rollbackDeleteAccount(newAccount)
 		rollbackDeleteHbaseTable(tableName)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
@@ -95,10 +108,10 @@ func (handler *Hbase_sharedHandler) DoProvision(instanceID string, details broke
 
 	myServiceInfo := ServiceInfo{
 		Url:             hbaseUrl,
-		Admin_user:      "ocdp",
+		//Admin_user:      "ocdp",
 		Database:        tableName,
 		User:            newAccount,
-		Password:        "",
+		Password:        "asiainfo",
 		HbasePolicyInfo: info,
 		Policy_id:       policyId,
 	}
@@ -120,8 +133,16 @@ func (handler *Hbase_sharedHandler) DoLastOperation(myServiceInfo *ServiceInfo) 
 func (handler *Hbase_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asyncAllowed bool) (brokerapi.IsAsync, error) {
 	fmt.Println("DoDeprovision......")
 
-	err := deleteHbaseTable(myServiceInfo.Database)
+	err := deletePrincpal(myServiceInfo.User)
 	if err != nil {
+		fmt.Println("delete princpal err!")
+		return brokerapi.IsAsync(false), err
+	}
+	fmt.Printf("delete princpal %s@ASIAINFO.COM done......\n", myServiceInfo.User)
+
+	err = deleteHbaseTable(myServiceInfo.Database)
+	if err != nil {
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 	fmt.Printf("Delete Hbase table %s done......\n", myServiceInfo.Database)
@@ -131,12 +152,14 @@ func (handler *Hbase_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, as
 	resp, err := ranger.GetPolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
 	if err != nil {
 		rollbackCreateHbaseTable(myServiceInfo.Database)
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 	if resp.StatusCode != http.StatusOK {
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackCreateHbaseTable(myServiceInfo.Database)
+			rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 			return brokerapi.IsAsync(false), err
 		}
 
@@ -145,11 +168,13 @@ func (handler *Hbase_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, as
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackCreateHbaseTable(myServiceInfo.Database)
+			rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 			return brokerapi.IsAsync(false), err
 		}
 		err = json.Unmarshal(respbody, &info)
 		if err != nil {
 			rollbackCreateHbaseTable(myServiceInfo.Database)
+			rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 			return brokerapi.IsAsync(false), err
 		}
 	}
@@ -165,12 +190,14 @@ func (handler *Hbase_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, as
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
 		rollbackCreateHbaseTable(myServiceInfo.Database)
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
 		rollbackCreateHbaseTable(myServiceInfo.Database)
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 
@@ -178,6 +205,7 @@ func (handler *Hbase_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, as
 		err = deleteAccount(ldap, user)
 		if err != nil {
 			rollbackCreateHbaseTable(myServiceInfo.Database)
+			rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 			return brokerapi.IsAsync(false), err
 		}
 	}
@@ -187,6 +215,7 @@ func (handler *Hbase_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, as
 	if err != nil {
 		rollbackCreateAccount(myServiceInfo.User)
 		rollbackCreateHbaseTable(myServiceInfo.Database)
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 	fmt.Printf("Delete policy %s done......\n", myServiceInfo.HbasePolicyInfo.PolicyName)
@@ -197,18 +226,32 @@ func (handler *Hbase_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, as
 func (handler *Hbase_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID string, details brokerapi.BindDetails) (brokerapi.Binding, Credentials, error) {
 	fmt.Println("DoBind......")
 
+	princpalName := "wm" + getRandom()
+	password := getRandom()
+	random := []rune(password)
+	password = string(random[0:8])
+	err := createPrincpal(princpalName, password)
+	if err != nil {
+		fmt.Println("create princpal err!")
+		return brokerapi.Binding{}, Credentials{}, err
+	}
+	fmt.Printf("create princpal %s@ASIAINFO.COM done......\n", princpalName)
+
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
-	newAccount := "wm_" + getRandom()
+	newAccount := princpalName
 	err = addAccount(ldap, newAccount, "broker")
 	if err != nil {
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 	fmt.Printf("Create account %s done......\n", newAccount)
@@ -220,6 +263,8 @@ func (handler *Hbase_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID
 	if resp.StatusCode != http.StatusOK {
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
+			rollbackDeleteAccount(newAccount)
+			rollbackDeletePrincpal(princpalName)
 			return brokerapi.Binding{}, Credentials{}, err
 		}
 
@@ -227,11 +272,15 @@ func (handler *Hbase_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID
 	} else {
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
+			rollbackDeleteAccount(newAccount)
+			rollbackDeletePrincpal(princpalName)
 			return brokerapi.Binding{}, Credentials{}, err
 		}
 		err = json.Unmarshal(respbody, &info)
 		fmt.Println(info)
 		if err != nil {
+			rollbackDeleteAccount(newAccount)
+			rollbackDeletePrincpal(princpalName)
 			return brokerapi.Binding{}, Credentials{}, err
 		}
 	}
@@ -251,6 +300,7 @@ func (handler *Hbase_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID
 
 	if err != nil {
 		rollbackDeleteAccount(newAccount)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 	fmt.Printf("Update policy %s done......\n", myServiceInfo.HbasePolicyInfo.PolicyName)
@@ -260,7 +310,7 @@ func (handler *Hbase_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID
 		Hostname: strings.Split(myServiceInfo.Url, ":")[0],
 		Port:     strings.Split(myServiceInfo.Url, ":")[1],
 		Username: newAccount,
-		Password: "",
+		Password: password,
 		Name:     myServiceInfo.Database,
 	}
 
@@ -272,18 +322,28 @@ func (handler *Hbase_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID
 func (handler *Hbase_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycredentials *Credentials) error {
 	fmt.Println("DoUnbind......")
 
+	err := deletePrincpal(mycredentials.Username)
+	if err != nil {
+		fmt.Println("delete princpal err!")
+		return err
+	}
+	fmt.Printf("delete princpal %s@ASIAINFO.COM done......\n", mycredentials.Username)
+
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 
 	err = deleteAccount(ldap, mycredentials.Username)
 	if err != nil {
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 	fmt.Printf("Delete account %s done......\n", mycredentials.Username)
@@ -293,6 +353,7 @@ func (handler *Hbase_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycrede
 	resp, err := ranger.GetPolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
 	if err != nil {
 		rollbackCreateAccount(mycredentials.Username)
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 
@@ -300,6 +361,7 @@ func (handler *Hbase_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycrede
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackCreateAccount(mycredentials.Username)
+			rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 			return err
 		}
 
@@ -308,11 +370,13 @@ func (handler *Hbase_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycrede
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackCreateAccount(mycredentials.Username)
+			rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 			return err
 		}
 		err = json.Unmarshal(respbody, &info)
 		if err != nil {
 			rollbackCreateAccount(mycredentials.Username)
+			rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 			return err
 		}
 	}
@@ -326,6 +390,7 @@ func (handler *Hbase_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycrede
 	_, err = ranger.UpdateHbasePolicy(rangerEndpoint, rangerUser, rangerPassword, info, myServiceInfo.Policy_id)
 	if err != nil {
 		rollbackCreateAccount(mycredentials.Username)
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 	fmt.Printf("Delete %s from policy %s done......\n", mycredentials.Username, myServiceInfo.HbasePolicyInfo.PolicyName)
@@ -473,6 +538,42 @@ func rollbackCreateHbaseTable(tableName string) {
 
 	if err == nil {
 		fmt.Printf("Rollback create Hbase table %s done......\n", tableName)
+	} else {
+		fmt.Println("Rollback failed......")
+	}
+}
+
+func rollbackDeletePrincpal(princpalName string) {
+	fmt.Println("Error occurred ! Rollback delete princpal......")
+
+	var err error
+	for i := 0; i < 10; i++ {
+		err = deletePrincpal(princpalName)
+		if err != nil {
+			fmt.Println("delete princpal err!")
+			continue
+		}
+	}
+	if err == nil {
+		fmt.Printf("Rollback delete princpal %s@ASIAINFO.COM done......\n", princpalName)
+	} else {
+		fmt.Println("Rollback failed......")
+	}
+}
+
+func rollbackCreatePrincpal(princpalName, password string) {
+	fmt.Println("Error occurred ! Rollback create princpal......")
+
+	var err error
+	for i := 0; i < 10; i++ {
+		err = createPrincpal(princpalName, password)
+		if err != nil {
+			fmt.Println("delete princpal err!")
+			continue
+		}
+	}
+	if err == nil {
+		fmt.Printf("Rollback create princpal %s@ASIAINFO.COM done......\n", princpalName)
 	} else {
 		fmt.Println("Rollback failed......")
 	}

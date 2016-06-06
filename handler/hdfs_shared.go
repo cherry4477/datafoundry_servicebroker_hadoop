@@ -53,6 +53,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 
 	fs, err := hdfs.NewFileSystem(*config)
 	if err != nil {
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
@@ -60,6 +61,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 
 	_, err = createDirectory(fs, dname, 0700)
 	if err != nil {
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 	fmt.Printf("Create directory /servicebroker/%s done......\n", dname)
@@ -70,18 +72,21 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
 		rollbackDeleteDirectory(fs, dname)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
 		rollbackDeleteDirectory(fs, dname)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
 	err = addAccount(ldap, newAccount, "broker")
 	if err != nil {
 		rollbackDeleteDirectory(fs, dname)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 	fmt.Printf("Create account %s done......\n", newAccount)
@@ -109,6 +114,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	if err != nil {
 		rollbackDeleteAccount(newAccount)
 		rollbackDeleteDirectory(fs, dname)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
@@ -161,11 +167,13 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 	config := newHdfsConfig()
 	fs, err := hdfs.NewFileSystem(*config)
 	if err != nil {
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 
 	_, err = deleteDirectory(fs, myServiceInfo.Database, true)
 	if err != nil {
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 	fmt.Printf("Delete directory /servicebroker/%s done......\n", myServiceInfo.Database)
@@ -175,12 +183,14 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 	resp, err := ranger.GetPolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
 	if err != nil {
 		rollbackCreateDirectory(fs, myServiceInfo.Database)
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 	if resp.StatusCode != http.StatusOK {
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackCreateDirectory(fs, myServiceInfo.Database)
+			rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 			return brokerapi.IsAsync(false), err
 		}
 
@@ -189,11 +199,13 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackCreateDirectory(fs, myServiceInfo.Database)
+			rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 			return brokerapi.IsAsync(false), err
 		}
 		err = json.Unmarshal(respbody, &info)
 		if err != nil {
 			rollbackCreateDirectory(fs, myServiceInfo.Database)
+			rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 			return brokerapi.IsAsync(false), err
 		}
 	}
@@ -209,12 +221,14 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
 		rollbackCreateDirectory(fs, myServiceInfo.Database)
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
 		rollbackCreateDirectory(fs, myServiceInfo.Database)
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 
@@ -222,6 +236,7 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 		err = deleteAccount(ldap, user)
 		if err != nil {
 			rollbackCreateDirectory(fs, myServiceInfo.Database)
+			rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 			return brokerapi.IsAsync(false), err
 		}
 	}
@@ -232,6 +247,7 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 	if err != nil {
 		rollbackCreateAccount(myServiceInfo.User)
 		rollbackCreateDirectory(fs, myServiceInfo.Database)
+		rollbackCreatePrincpal(myServiceInfo.User, myServiceInfo.Password)
 		return brokerapi.IsAsync(false), err
 	}
 	fmt.Printf("Delete policy %s done......\n", myServiceInfo.HdfsPolicyInfo.PolicyName)
@@ -255,16 +271,19 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 	newAccount := princpalName
 	err = addAccount(ldap, newAccount, "broker")
 	if err != nil {
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 	//myServiceInfo.Bind_user = newAccount
@@ -279,6 +298,8 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 	if resp.StatusCode != http.StatusOK {
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
+			rollbackDeleteAccount(newAccount)
+			rollbackDeletePrincpal(princpalName)
 			return brokerapi.Binding{}, Credentials{}, err
 		}
 
@@ -286,11 +307,15 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 	} else {
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
+			rollbackDeleteAccount(newAccount)
+			rollbackDeletePrincpal(princpalName)
 			return brokerapi.Binding{}, Credentials{}, err
 		}
 		err = json.Unmarshal(respbody, &info)
 		fmt.Println(info)
 		if err != nil {
+			rollbackDeleteAccount(newAccount)
+			rollbackDeletePrincpal(princpalName)
 			return brokerapi.Binding{}, Credentials{}, err
 		}
 	}
@@ -310,6 +335,7 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 
 	if err != nil {
 		rollbackDeleteAccount(newAccount)
+		rollbackDeletePrincpal(princpalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 
@@ -341,16 +367,19 @@ func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycreden
 
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 
 	err = deleteAccount(ldap, mycredentials.Username)
 	if err != nil {
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 	fmt.Printf("Delete account %s done......\n", mycredentials.Username)
@@ -360,6 +389,7 @@ func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycreden
 	resp, err := ranger.GetPolicy(rangerEndpoint, rangerUser, rangerPassword, myServiceInfo.Policy_id)
 	if err != nil {
 		rollbackCreateAccount(mycredentials.Username)
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 
@@ -367,6 +397,7 @@ func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycreden
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackCreateAccount(mycredentials.Username)
+			rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 			return err
 		}
 
@@ -375,11 +406,13 @@ func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycreden
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackCreateAccount(mycredentials.Username)
+			rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 			return err
 		}
 		err = json.Unmarshal(respbody, &info)
 		if err != nil {
 			rollbackCreateAccount(mycredentials.Username)
+			rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 			return err
 		}
 	}
@@ -393,6 +426,7 @@ func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycreden
 	_, err = ranger.UpdateHdfsPolicy(rangerEndpoint, rangerUser, rangerPassword, info, myServiceInfo.Policy_id)
 	if err != nil {
 		rollbackCreateAccount(mycredentials.Username)
+		rollbackCreatePrincpal(mycredentials.Username, mycredentials.Password)
 		return err
 	}
 	fmt.Printf("Delete user in policy %s done......\n", myServiceInfo.HdfsPolicyInfo.PolicyName)
