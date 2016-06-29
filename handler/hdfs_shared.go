@@ -28,6 +28,9 @@ var (
 	rangerEndpoint string
 	rangerUser     string
 	rangerPassword string
+
+	principalAdminUser string
+	principalAdminPassword string
 )
 
 type Hdfs_sharedHandler struct{}
@@ -41,19 +44,19 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
-	princpalName := "wm" + getRandom()
-	err = createPrincpal(princpalName, "asiainfo")
+	principalName := "wm" + getRandom()
+	err = createPrincpal(principalName, "asiainfo")
 	if err != nil {
-		fmt.Println("create princpal err!")
+		fmt.Println("create principal err!")
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
-	fmt.Printf("create princpal %s@ASIAINFO.COM done......\n", princpalName)
+	fmt.Printf("create principal %s@ASIAINFO.COM done......\n", principalName)
 
 	config := newHdfsConfig()
 
 	fs, err := hdfs.NewFileSystem(*config)
 	if err != nil {
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
@@ -61,32 +64,32 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 
 	_, err = createDirectory(fs, dname, 0700)
 	if err != nil {
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 	fmt.Printf("Create directory /servicebroker/%s done......\n", dname)
 
-	newAccount := princpalName
+	newAccount := principalName
 	policyName := getRandom()
 
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
 		rollbackDeleteDirectory(fs, dname)
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
 		rollbackDeleteDirectory(fs, dname)
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
 	err = addAccount(ldap, newAccount, "broker")
 	if err != nil {
 		rollbackDeleteDirectory(fs, dname)
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 	fmt.Printf("Create account %s done......\n", newAccount)
@@ -114,7 +117,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	if err != nil {
 		rollbackDeleteAccount(newAccount)
 		rollbackDeleteDirectory(fs, dname)
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.ProvisionedServiceSpec{}, ServiceInfo{}, err
 	}
 
@@ -126,7 +129,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 
 	myServiceInfo := ServiceInfo{
 		Url: hdfsUrl,
-		//Admin_user: princpalName,
+		//Admin_user: principalName,
 		//Admin_password: "asiainfo",
 		Database:       dname,
 		User:           newAccount,
@@ -159,10 +162,10 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 
 	err = deletePrincpal(myServiceInfo.User)
 	if err != nil {
-		fmt.Println("delete princpal err!")
+		fmt.Println("delete principal err!")
 		return brokerapi.IsAsync(false), err
 	}
-	fmt.Printf("delete princpal %s@ASIAINFO.COM done......\n", myServiceInfo.User)
+	fmt.Printf("delete principal %s@ASIAINFO.COM done......\n", myServiceInfo.User)
 
 	config := newHdfsConfig()
 	fs, err := hdfs.NewFileSystem(*config)
@@ -258,32 +261,32 @@ func (handler *Hdfs_sharedHandler) DoDeprovision(myServiceInfo *ServiceInfo, asy
 func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID string, details brokerapi.BindDetails) (brokerapi.Binding, Credentials, error) {
 	fmt.Println("DoBind......")
 
-	princpalName := "wm" + getRandom()
+	principalName := "wm" + getRandom()
 	password := getRandom()
 	random := []rune(password)
 	password = string(random[0:8])
-	err := createPrincpal(princpalName, password)
+	err := createPrincpal(principalName, password)
 	if err != nil {
-		fmt.Println("create princpal err!")
+		fmt.Println("create principal err!")
 		return brokerapi.Binding{}, Credentials{}, err
 	}
-	fmt.Printf("create princpal %s@ASIAINFO.COM done......\n", princpalName)
+	fmt.Printf("create principal %s@ASIAINFO.COM done......\n", principalName)
 
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 
 	err = ldap.Bind(ldapUser, ldapPassword)
 	if err != nil {
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
-	newAccount := princpalName
+	newAccount := principalName
 	err = addAccount(ldap, newAccount, "broker")
 	if err != nil {
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 	//myServiceInfo.Bind_user = newAccount
@@ -299,7 +302,7 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackDeleteAccount(newAccount)
-			rollbackDeletePrincpal(princpalName)
+			rollbackDeletePrincpal(principalName)
 			return brokerapi.Binding{}, Credentials{}, err
 		}
 
@@ -308,14 +311,14 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 		respbody, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			rollbackDeleteAccount(newAccount)
-			rollbackDeletePrincpal(princpalName)
+			rollbackDeletePrincpal(principalName)
 			return brokerapi.Binding{}, Credentials{}, err
 		}
 		err = json.Unmarshal(respbody, &info)
 		fmt.Println(info)
 		if err != nil {
 			rollbackDeleteAccount(newAccount)
-			rollbackDeletePrincpal(princpalName)
+			rollbackDeletePrincpal(principalName)
 			return brokerapi.Binding{}, Credentials{}, err
 		}
 	}
@@ -335,7 +338,7 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 
 	if err != nil {
 		rollbackDeleteAccount(newAccount)
-		rollbackDeletePrincpal(princpalName)
+		rollbackDeletePrincpal(principalName)
 		return brokerapi.Binding{}, Credentials{}, err
 	}
 
@@ -360,10 +363,10 @@ func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycreden
 
 	err := deletePrincpal(mycredentials.Username)
 	if err != nil {
-		fmt.Println("delete princpal err!")
+		fmt.Println("delete principal err!")
 		return err
 	}
-	fmt.Printf("delete princpal %s@ASIAINFO.COM done......\n", mycredentials.Username)
+	fmt.Printf("delete principal %s@ASIAINFO.COM done......\n", mycredentials.Username)
 
 	ldap, err := openldap.Initialize(ldapUrl)
 	if err != nil {
@@ -444,6 +447,8 @@ func init() {
 	rangerEndpoint = getenv("RANGERENDPOINT")
 	rangerUser = getenv("RANGERUSER")
 	rangerPassword = getenv("RANGERPASSWORD")
+	principalAdminUser = getenv("PRINCIPALADMINUSER")
+	principalAdminPassword = getenv("PRINCIPALADMINPASSWORD")
 }
 
 func newHdfsConfig() *hdfs.Configuration {
@@ -647,8 +652,12 @@ func createPrincpal(name, password string) error {
 	cmd := exec.Command("sh")
 	cmd.Stdin = in
 
+	if principalAdminUser == "" {
+		principalAdminUser = "admin/admin" //默认admin principal
+	}
+
 	go func() {
-		createStr := "kadmin -p 'admin/admin' -w 'admin' -q 'addprinc -pw " + password + " " + name + "'\n"
+		createStr := "kadmin -p '" + principalAdminUser + "' -w '" + principalAdminPassword + "' -q 'addprinc -pw " + password + " " + name + "'\n"
 		in.WriteString(createStr)
 		in.WriteString("exit\n")
 	}()
@@ -663,9 +672,12 @@ func deletePrincpal(name string) error {
 	cmd := exec.Command("sh")
 	cmd.Stdin = in
 
+	if principalAdminUser == "" {
+		principalAdminUser = "admin/admin" //默认admin principal
+	}
+
 	go func() {
-		//"kadmin -p 'admin/admin' -w 'admin' -q 'delprinc -force "+ name +"'"
-		deleteStr := "kadmin -p 'admin/admin' -w 'admin' -q 'delprinc -force " + name + "'\n"
+		deleteStr := "kadmin -p '" + principalAdminUser + "' -w '" + principalAdminPassword + "' -q 'delprinc -force " + name + "'\n"
 		in.WriteString(deleteStr)
 		in.WriteString("exit\n")
 	}()
