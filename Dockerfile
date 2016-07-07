@@ -1,4 +1,4 @@
-FROM golang:1.6.0
+FROM golang:1.6.2
 
 ENV TIME_ZONE=Asia/Shanghai
 RUN ln -snf /usr/share/zoneinfo/$TIME_ZONE /etc/localtime && echo $TIME_ZONE > /etc/timezone
@@ -23,9 +23,9 @@ ENV GODEBUG=cgocheck=0
 
 RUN go build
 
-RUN chmod u+x /start.sh
-
 ENV BROKERPORT 8000
 EXPOSE 8000
+
+RUN chmod u+x /start.sh
 
 CMD ["/start.sh"]
