@@ -12,10 +12,10 @@
  * distribute, sublicense, and/or sell copies of the Software, and to
  * permit persons to whom the Software is furnished to do so, subject to
  * the following conditions:
- *
+ * 
  * The above copyright notice and this permission notice shall be
  * included in all copies or substantial portions of the Software.
- *
+ * 
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -47,10 +47,11 @@ type LdapMessage struct {
 	errno int
 }
 
-type LdapAttribute struct {
-	name   string
+type LdapAttribute struct{
+	name string
 	values []string
 }
+
 
 type LdapEntry struct {
 	ldap *Ldap
@@ -59,17 +60,17 @@ type LdapEntry struct {
 	errno int
 	ber   *C.BerElement
 
-	dn     string
+	dn string
 	values []LdapAttribute
 }
 
-type LdapSearchResult struct {
+type LdapSearchResult struct{
 	ldap *Ldap
 
-	scope      int
-	filter     string
-	base       string
+	scope int
+	filter string
+	base string
 	attributes []string
-
+	
 	entries []LdapEntry
 }

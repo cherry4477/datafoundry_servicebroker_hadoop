@@ -66,8 +66,8 @@
 		},
 		{
 			"ImportPath": "github.com/xmwilldo/gowfs",
-			"Comment": "v0.1.0-10-g2c497f7",
-			"Rev": "2c497f7968e92d342ab9c17d4ecbf09d592d1752"
+			"Comment": "v0.1.0-11-g9d599f9",
+			"Rev": "9d599f9e7880820ea87e304d5a96336d760a08f5"
 		},
 		{
 			"ImportPath": "github.com/xmwilldo/ranger",
