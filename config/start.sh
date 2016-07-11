@@ -8,7 +8,7 @@ echo "kinit"
 date
 if [ "$1" = "jd" ];then
 	cp ./config/krb5.conf.jd /etc/krb5.conf
-	kinit -p ocdp-OCDPforLDP@ASIAINFO.COM -kt ocdp-go-broker.keytab
+	kinit -p ocdp-OCDPforLDP@ASIAINFO.COM -kt ./config/ocdp-go-broker.keytab
 else
 	kinit ocdp/h-4lcf6qdz@ASIAINFO.COM <<!!
 	asiainfo
