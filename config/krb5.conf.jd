@@ -17,6 +17,6 @@
 
 [realms]
   ASIAINFO.COM = {
-    admin_server = 36.110.132.55
-    kdc = 36.110.132.55
+    admin_server = hadoop-2.jcloud.local
+    kdc = hadoop-2.jcloud.local
   }

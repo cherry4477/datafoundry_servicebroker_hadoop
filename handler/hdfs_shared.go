@@ -29,7 +29,7 @@ var (
 	rangerUser     string
 	rangerPassword string
 
-	principalAdminUser string
+	principalAdminUser     string
 	principalAdminPassword string
 )
 
@@ -633,7 +633,7 @@ func initCookie() error {
 	in := bytes.NewBuffer(nil)
 	cmd := exec.Command("sh")
 	cmd.Stdin = in
-	in.WriteString("curl -i -v --negotiate -u : -b /tmp/cookiejar.txt -c /tmp/cookiejar.txt http://10.1.130.127:50070/webhdfs/v1/?op=liststatus\n")
+	in.WriteString(fmt.Sprintf("curl -i -v --negotiate -u : -b /tmp/cookiejar.txt -c /tmp/cookiejar.txt http://%s/webhdfs/v1/?op=liststatus\n", hdfsUrl))
 	in.WriteString("exit\n")
 	if err := cmd.Run(); err != nil {
 		fmt.Println(err)
