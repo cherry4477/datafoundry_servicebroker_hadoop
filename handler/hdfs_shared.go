@@ -103,11 +103,11 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	ranger.AddPermissionToHdfsPolicy(&info, perm)
 
 	var policyId int
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 18; i++ {
 		fmt.Println("try create policy......")
 		policyId, err = ranger.CreateHdfsPolicy(rangerEndpoint, rangerUser, rangerPassword, info)
 		if err != nil {
-			time.Sleep(time.Second * 6)
+			time.Sleep(time.Second * 3)
 			continue
 		} else {
 			break
