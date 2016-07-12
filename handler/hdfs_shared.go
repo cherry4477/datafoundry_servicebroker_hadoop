@@ -94,7 +94,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	}
 	fmt.Printf("Create account %s done......\n", newAccount)
 
-	info := newHdfsPolicyInfo("ocdp_hadoop", policyName, "/servicebroker/"+dname)
+	info := newHdfsPolicyInfo("OCDPforLDP_hadoop", policyName, "/servicebroker/"+dname)
 
 	perm := ranger.InitPermission()
 	ranger.AddUserToPermission(&perm, newAccount)
@@ -107,7 +107,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 		fmt.Println("try create policy......")
 		policyId, err = ranger.CreateHdfsPolicy(rangerEndpoint, rangerUser, rangerPassword, info)
 		if err != nil {
-			time.Sleep(time.Second * 3)
+			time.Sleep(time.Second * 6)
 			continue
 		} else {
 			break
@@ -115,6 +115,7 @@ func (handler *Hdfs_sharedHandler) DoProvision(instanceID string, details broker
 	}
 
 	if err != nil {
+		fmt.Println("create policy error:", err, "ranger:", rangerEndpoint, rangerUser, rangerPassword)
 		rollbackDeleteAccount(newAccount)
 		rollbackDeleteDirectory(fs, dname)
 		rollbackDeletePrincpal(principalName)
