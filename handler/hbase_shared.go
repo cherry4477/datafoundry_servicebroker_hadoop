@@ -286,7 +286,13 @@ func (handler *Hbase_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID
 	}
 
 	ranger.AddUserToPermission(&info.PermMapList[0], newAccount)
-	fmt.Println(info, "----------", newAccount, "$$$$$$$$$$$$$$$$", info.PermMapList[0], "@@@@@@@@@@", info.PermMapList)
+
+	//Read: is not a valid access-type.  Need Lower style "read"
+	for i, _ := range info.PermMapList {
+		for k, v := range info.PermMapList[i].PermList {
+			info.PermMapList[i].PermList[k] = strings.ToLower(v)
+		}
+	}
 
 	for i := 0; i < 18; i++ {
 		fmt.Println("try update policy......")
@@ -299,6 +305,7 @@ func (handler *Hbase_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID
 		}
 	}
 
+	fmt.Println(info)
 	if err != nil {
 		rollbackDeleteAccount(newAccount)
 		rollbackDeletePrincpal(princpalName)
