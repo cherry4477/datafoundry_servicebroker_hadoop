@@ -75,7 +75,7 @@ func (handler *Hbase_sharedHandler) DoProvision(instanceID string, details broke
 	fmt.Printf("Create account %s done......\n", newAccount)
 
 	policyName := getRandom()
-	info := newHbasePolicyInfo("ocdp_hbase", policyName, tableName)
+	info := newHbasePolicyInfo("OCDPforLDP_hbase", policyName, tableName)
 
 	perm := ranger.InitPermission()
 	ranger.AddUserToPermission(&perm, newAccount)
@@ -84,7 +84,7 @@ func (handler *Hbase_sharedHandler) DoProvision(instanceID string, details broke
 	ranger.AddPermissionToHbasePolicy(&info, perm)
 
 	var policyId int
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 18; i++ {
 		fmt.Println("try create policy......")
 		policyId, err = ranger.CreateHbasePolicy(rangerEndpoint, rangerUser, rangerPassword, info)
 		if err != nil {
@@ -107,7 +107,7 @@ func (handler *Hbase_sharedHandler) DoProvision(instanceID string, details broke
 	DashboardURL := "http://"
 
 	myServiceInfo := ServiceInfo{
-		Url:             hbaseUrl,
+		Url: hbaseUrl,
 		//Admin_user:      "ocdp",
 		Database:        tableName,
 		User:            newAccount,
