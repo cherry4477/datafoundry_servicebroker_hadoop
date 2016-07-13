@@ -286,8 +286,9 @@ func (handler *Hbase_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID
 	}
 
 	ranger.AddUserToPermission(&info.PermMapList[0], newAccount)
+	fmt.Println(info, "----------", newAccount, "$$$$$$$$$$$$$$$$", info.PermMapList[0], "@@@@@@@@@@", info.PermMapList)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 18; i++ {
 		fmt.Println("try update policy......")
 		_, err = ranger.UpdateHbasePolicy(rangerEndpoint, rangerUser, rangerPassword, info, myServiceInfo.Policy_id)
 		if err != nil {

@@ -328,6 +328,7 @@ func (handler *Hdfs_sharedHandler) DoBind(myServiceInfo *ServiceInfo, bindingID 
 
 	for i := 0; i < 10; i++ {
 		fmt.Println("try update policy......")
+		fmt.Println(info)
 		_, err = ranger.UpdateHdfsPolicy(rangerEndpoint, rangerUser, rangerPassword, info, myServiceInfo.Policy_id)
 		if err != nil {
 			time.Sleep(time.Second * 3)
