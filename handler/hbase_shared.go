@@ -407,7 +407,7 @@ func (handler *Hbase_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycrede
 }
 
 func init() {
-	register("hbase_shared", &Hbase_sharedHandler{})
+	register("HBASE_shared", &Hbase_sharedHandler{})
 	hbaseUrl = getenv("HBASEURL")
 	ldapUrl = getenv("LDAPURL")
 	ldapUser = getenv("LDAPUSER")

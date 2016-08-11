@@ -447,7 +447,7 @@ func (handler *Hdfs_sharedHandler) DoUnbind(myServiceInfo *ServiceInfo, mycreden
 }
 
 func init() {
-	register("hdfs_shared", &Hdfs_sharedHandler{})
+	register("HDFS_shared", &Hdfs_sharedHandler{})
 	hdfsUrl = getenv("HDFSURL")
 	hdfsUser = getenv("HDFSUSER")
 	ldapUrl = getenv("LDAPURL")
